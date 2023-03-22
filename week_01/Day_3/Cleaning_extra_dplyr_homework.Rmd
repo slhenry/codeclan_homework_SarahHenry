@@ -97,11 +97,14 @@ Use case_when, cretae new column budget_type and label
 movie_budgets <- movies_imputed %>% 
   mutate(budget_type = case_when(
     budget < 1.2e+07 ~ "Small Budget",
-    budget = 1.2e+07:4e+07 ~ "Medium Budget",
+    budget > 1.2e+07 ~ "Medium Budget",
     budget > 4e+07 ~ "Big Budget",
     TRUE ~ "Other budget"
   ))
+
+head(movie_budgets)
 ```
+
 
 
 #Extension Question 2: Take the original dataset with all the variables. Using across and where, summarise the number of missing values, first across all columns of type character, and then across all columns of type numeric
