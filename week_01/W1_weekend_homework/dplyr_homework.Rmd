@@ -1,0 +1,181 @@
+---
+title: "Dplyr weekend homework - Week1"
+output: html_notebook
+---
+
+Load packages and read in data
+```{r}
+library(tidyverse)
+books <- read_csv("books.csv")
+```
+
+## Investigate data, are there any missing values?
+
+```{r}
+summary(books)
+```
+
+
+
+```{r}
+head(books)
+```
+
+
+
+```{r}
+# Are there any NAs in the data?
+books %>% 
+  summarise(across(.fns = ~sum(is.na(.x))))
+```
+
+
+
+# Q1 What languages were books published in and how many for each language? 
+
+Assuming English is the top language, what is the second most popular and what are the top 10 rated books in that language?
+
+
+```{r}
+# what different languages are listed?
+books %>% 
+  distinct(language_code)
+```
+
+
+```{r}
+# group and summarise books by language
+books_languages <- books %>% 
+  group_by(language_code) %>% 
+  summarise(language_count = n()) %>% 
+  arrange(desc(language_count))
+books_languages
+```
+
+```{r}
+# what are the top 10 books in Spanish?
+
+books %>%
+  filter(language_code == "spa") %>% 
+  arrange(desc(average_rating)) %>% 
+  head(10)
+```
+
+# Q2: When were'Good reads' books published, and how many for each year? Which years had the highest number of published books?
+
+```{r}
+# select columns for title, author and year published. Assign to new name
+books_year <- books %>%
+  select(rowid, bookID, title, authors, average_rating, publication_date, ratings_count)
+
+# change date format from character to date
+books_year_new <- books_year %>%  
+   mutate(publication_year = as.Date(publication_date, "%m/%d/%Y")) 
+```
+
+
+
+```{r}
+# format publication from YYYY-MM-DD to  show year YYYY
+books_year_new <- books_year_new %>% 
+  mutate(year = as.numeric(format(publication_year, "%Y")))
+```
+
+
+```{r}
+# group the books by publication year, summarise and sort by year with most books published
+books_year_new %>% 
+  group_by(year) %>% 
+  summarise(mean_rating = mean(average_rating),
+            count = n()) %>% 
+  arrange(desc(count))
+```
+
+
+
+
+
+# Q3: What is the average rating for each publisher
+
+```{r}
+books %>% 
+  group_by(publisher) %>% 
+  summarise(ave_publisher_rating = mean(average_rating),
+            books_per_publisher = n()) %>%
+  arrange(desc(books_per_publisher))
+```
+
+## Q4: What books have the most rating counts?  
+
+```{r}
+# combine review counts and text counts into a new column for numbers of individuals responding. Assuming everyone who left a text review also rated. 
+books_count_combined <- books %>%
+  mutate(ratings_total_individuals = ratings_count - text_reviews_count,
+         .after = text_reviews_count) 
+
+# check if any of these are negative numbers, to check assumption is justified. Only 2 cases, so ok to continue
+books_count_combined %>% 
+  filter(ratings_total_individuals < 0)
+```
+
+```{r}
+books_count_combined <- books_count_combined %>% 
+  arrange(desc(ratings_total_individuals))
+
+head(books_count_combined, 10)
+```
+
+
+
+
+# Q5: How many books have an average rating of 5, 4, 3, 2, and 1. 
+
+Group them by the rating and calculate mean and numbers for each. Can we relabel the books with <100 ratings, as these don't have enough ratings
+
+```{r}
+# select variables for title, rating and combined_count. 
+books_grouped <- books_count_combined %>% 
+  select(rowid, bookID, title, average_rating, ratings_total_individuals) 
+```
+
+
+
+```{r}
+# recode books with less than 100 reviews and assign 'new'star' label to group
+books_rated_grouped <- books_grouped %>% 
+  mutate(
+    ratings_grouped = case_when(
+      ratings_total_individuals < 50 ~ "Fewer than 50 reviews",
+      average_rating > 4.75 ~ "5 star",
+      average_rating > 4 ~ "4 star",
+      average_rating > 3 ~ "3 star",
+      average_rating > 2 ~ "2 star",
+      average_rating > 1 ~ "1 star",
+      average_rating > 0 ~ "unrated",
+      TRUE ~ "other rating")) 
+books_rated_grouped %>%      
+head(10)
+```
+Summarise these groups with mean rating and number of books in each group 
+
+
+```{r}
+ # group books by average rating
+books_rated_grouped %>% 
+  group_by(ratings_grouped) %>% 
+  summarise(mean_rating = mean(average_rating),
+            book_count = n())
+```
+
+# Q6: what were the top 10 rated books published in the 1980s
+
+```{r}
+books_1980s <- books_year_new %>% 
+  filter(year == c(1980 : 1989)) %>% 
+  arrange(desc(average_rating))  
+
+books_1980s %>% 
+  head(10)
+```
+
+

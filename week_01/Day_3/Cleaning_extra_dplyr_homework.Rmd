@@ -42,6 +42,21 @@ movies_selected %>%
 movies_selected %>% 
   summarise(count = sum(is.na(runtime)))
 ```
+```{r}
+# solution to join all together
+movies_selected %>% 
+  summarise(title_nas = sum(is.na(title)),
+            budget_na = sum(is.na(budget)),
+            runtime_nas = sum(is.na(budget)))
+
+
+# base R colSums
+colSums(is.na(movies_selected))
+
+# using across
+```
+
+
 No missing values in the title or budget, but 2 in the runtime. 
 
 # Question 4: convert zeros into NAs in the runtime using na_if
@@ -83,12 +98,13 @@ movies_imputed %>%
 
 ```{r}
 movies_imputed <- movies_imputed %>% 
-  mutate(budget_median_under100 = if_else(budget < 100,
+  mutate(budget_under_100 = if_else(budget < 100,
                           median(budget),
                           budget)) %>% 
   arrange(budget)
 movies_imputed
 ```
+
 
 #Extension Question 1
 Use case_when, cretae new column budget_type and label 
@@ -103,6 +119,7 @@ movie_budgets <- movies_imputed %>%
   ))
 
 head(movie_budgets)
+tail(movie_budgets)
 ```
 
 
@@ -111,9 +128,13 @@ head(movie_budgets)
 
 ```{r}
 movies %>%
-  summarise(across(.col = where(is.character),
-                   .fns = is.na))
+  summarise(across(where(is.character), ~ sum(is.na(.x))))
   
 
+```
+```{r}
+movies %>%
+  summarise(across(.col = where(is.numeric),
+                   .fns = ~ sum(is.na(.x))))
 ```
 
