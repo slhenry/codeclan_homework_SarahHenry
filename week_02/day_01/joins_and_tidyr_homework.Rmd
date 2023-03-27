@@ -1,0 +1,170 @@
+---
+title: "joins_and_tidyr_homework"
+output: html_document
+date: "2023-03-27"
+---
+
+load tidyverse and janitor
+```{r}
+library(tidyverse)
+library(janitor)
+```
+
+
+# Q1: Read in 4 credit card datasets
+
+```{r}
+card_base <- read_csv("CardBase.csv")
+customer_base <- read_csv("CustomerBase.csv")
+Fraud_base <- read_csv("FraudBase.csv")
+Transaction_base <- read_csv("TransactionBase.CSv")
+```
+
+clean column names using janitor package
+
+```{r}
+card_base_clean <- card_base %>% 
+  clean_names()
+customer_base_clean <- customer_base %>% 
+  clean_names()
+fraud_base_clean <- Fraud_base %>% 
+  clean_names()
+transaction_base_clean <- Transaction_base %>% 
+  clean_names()
+```
+
+# Q2: join card details and customer details by customer id, so all records of card details and any matching customer details are kept.  
+Will expect to see 500 rows, this is the number of rows in card_base. Hopefully should be additional columns matching customers. 
+
+```{r}
+card_joined_customer <- left_join(card_base_clean, customer_base_clean, "cust_id")
+  
+```
+
+# Q3: Join the data containing fraud details with transaction details so all rows of both tables are kept. What does the resulting row number tell you?
+There are 10000 rows in the resulting dataset, so all the transaction details are kept but now some include details of fraud transaction where they have matched. 
+
+```{r}
+transaction_joined_fraud <-  
+  full_join(transaction_base_clean, fraud_base_clean, by = "transaction_id")
+```
+
+```{r}
+transaction_base_clean %>% 
+  head()
+```
+
+```{r}
+transaction_joined_fraud %>% 
+  head()
+```
+
+Q4: Join the data containing card details with transaction details so rows from the first which have matching ones in the second are returned, but only return rows in the first table once.
+
+Firstly, rename credit card heading in Transaction dataset to "card_number" to match card dataset
+
+```{r}
+transaction_base_clean_adjusted <- rename(transaction_base_clean, card_number = credit_card_id)
+transaction_base_clean_adjusted %>% 
+  head()
+```
+
+
+```{r}
+semi_join(card_base_clean, transaction_base_clean_adjusted, by = "card_number")
+```
+
+
+#Q5: Read in hat_observations and separate observation into two columns, hat_colour and hat_type
+
+
+```{r}
+hat <- read_csv("hat_observations.csv")
+hat %>% 
+  head()
+```
+
+```{r}
+hat_separated <- hat %>% 
+  separate(observation, c("hat_colour", "hat_type"), sep = ",")
+```
+
+
+Q6: Unite day, month, and year columns into a column called date using a suitable separator. Then find the date where the most berets were observed.
+
+```{r}
+hat_date_united <- hat_separated %>% 
+  unite(date, c("day", "month", "year"), sep = "/")
+```
+
+```{r}
+hat_date_united %>% 
+  filter(hat_type == "beret") %>% 
+  arrange(desc(observation_count)) %>% 
+  head()
+
+```
+
+The date when the most berets were sold was 18th June 2018
+
+# Extension
+
+# Q1: Can you join all 4 datasets together so that you’re left with a dataset that looks like below with 109 rows and 12 columns?
+
+Plan to join card_joined_customer and fraud_joined_transaction. Get headings first to check which variables to join by
+
+```{r}
+names(card_joined_customer)
+```
+
+```{r}
+names(fraud_joined_transaction)
+```
+The only shared information is the card number. 
+
+```{r}
+card_joined_customer_renamed <- 
+  rename(card_joined_customer, "credit_card_id" = card_number)
+head(card_joined_customer_renamed)
+```
+```{r}
+# need to change the join between fraud and transaction to only return the matches (rather than previously which was to return all rows)
+transaction_joined_fraud_inner <-  
+  inner_join(transaction_base_clean, fraud_base_clean)
+```
+
+
+```{r}
+all_databases <- inner_join(card_joined_customer_renamed, transaction_joined_fraud_inner, by = "credit_card_id")
+head(all_databases)
+```
+
+2.2 
+
+Read in exam_scores and transform it into long format with two new columns exam_question and score. Then, using separate and select, remove superfluous information from the values in exam_question
+
+```{r}
+exam_scores <- read_csv("exam_scores.csv")
+```
+
+```{r}
+exam_scores_tidy <- exam_scores %>%
+  pivot_longer(-id, names_to = "exam_question", values_to = "score")
+```
+
+
+```{r}
+# separate exam_Q into two separate columns
+exam_scores_sep <- exam_scores_tidy %>% 
+  separate(exam_question, c("Exam", "Question"), sep = "_")
+
+```
+
+
+```{r}
+# unite id column with Exam column
+exam_scores_united <- exam_scores_sep %>% 
+  unite(Exam, c("Exam", "id"), sep = " ")
+head(exam_scores_united, n = 20)
+```
+
