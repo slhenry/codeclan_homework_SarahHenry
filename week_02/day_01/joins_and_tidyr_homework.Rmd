@@ -117,10 +117,7 @@ Plan to join card_joined_customer and fraud_joined_transaction. Get headings fir
 names(card_joined_customer)
 ```
 
-```{r}
-names(fraud_joined_transaction)
-```
-The only shared information is the card number. 
+
 
 ```{r}
 card_joined_customer_renamed <- 
