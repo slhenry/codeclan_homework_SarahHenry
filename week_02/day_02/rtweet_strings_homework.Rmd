@@ -1,8 +1,6 @@
 ---
 title: "Untitled"
-output:
-  html_document: default
-  pdf_document: default
+output: html_document
 date: "2023-03-28"
 ---
 
@@ -71,6 +69,7 @@ Find the mean number of characters that a CodeClan tweet contains. You can eithe
 tweet_length <- tweets %>% 
   mutate(tweet_length = str_length(text), .after = text,
          length_check = (tweet_length == display_text_width))
+head(tweet_length)
 ```
 
 
@@ -110,18 +109,51 @@ head(codeclan_hashtags)
 Extension: Question 8
 Some tweets have more than one hashtag, denoted by the c( symbols at the start of the string. Use the str_sub() and str_detect() functions and your codeclan_hashtags tibble from above to find all the cases in which the hashtag string begins with charactersc(.
 
+```{r}
+first_letters <- codeclan_hashtags %>% 
+  mutate(first_letters= str_sub(hashtags, start = 1, end = 2)) %>% 
+  filter(str_detect(first_letters, "c\\("))
+```
+
+Question 9. Use the str_detect() function to find all tweets with text that mentions “Edinburgh”, and count how many such tweets there are.
+
+```{r}
+Edinburgh <- tweets %>% 
+  select(text) %>%
+  filter(str_detect(text, "Edinburgh")) %>% 
+  summarise(count = n())
+Edinburgh
+```
+
+Question 10.
+Use str_extract_all() with a regular expression to find out which Twitter users CodeClan have been tweeting.
+
+```{r}
+user_pattern <- "@[a-z0-9]+"
+users <- tweets %>% 
+  select(text)
+str_extract_all(users, user_pattern)
+```
 
 
+Cailean's answer
+
+```{r}
+tweets %>% 
+  mutate(tweeted_to = str_extract_all(text, pattern = "@+[A-Za-z0-9\\_]+"), .after = text) %>% 
+  unnest_wider(tweeted_to, names_sep = "_") %>% 
+  select(tweeted_to_1:tweeted_to_6)
+```
+
+pattern translate = one or more @ followed by alpha numberic, esca
+
+unnest wider returns one column for each instance, each column called "Tweeted_to" with an "_" to separate between each next column (i.e. "tweeted_to_1", "tweeted_to_2" and so on...)
+
+ %>% 
+  str_extract_all(users, user_pattern)
 
 
-
-
-
-
-
-
-
-
+user_pattern <- "@[a-z0-9]+"
 
 
 

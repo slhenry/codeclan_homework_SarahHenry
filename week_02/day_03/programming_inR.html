@@ -10,7 +10,7 @@
 
 
 
-<meta name="date" content="2023-03-28" />
+<meta name="date" content="2023-03-29" />
 
 <title>Untitled</title>
 
@@ -350,11 +350,12 @@ display: none;
 
 
 <h1 class="title toc-ignore">Untitled</h1>
-<h4 class="date">2023-03-28</h4>
+<h4 class="date">2023-03-29</h4>
 
 </div>
 
 
+<p>Programming in R Homework</p>
 <pre class="r"><code>library(tidyverse)</code></pre>
 <pre><code>## Warning: package &#39;tidyverse&#39; was built under R version 4.2.3</code></pre>
 <pre><code>## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
@@ -367,247 +368,139 @@ display: none;
 ## ✖ dplyr::filter() masks stats::filter()
 ## ✖ dplyr::lag()    masks stats::lag()
 ## ℹ Use the ]8;;http://conflicted.r-lib.org/conflicted package]8;; to force all conflicts to become errors</code></pre>
-<pre class="r"><code>tweets &lt;- read_csv(&quot;code_clan_tweets.csv&quot;)</code></pre>
-<pre><code>## Rows: 234 Columns: 27
-## ── Column specification ────────────────────────────────────────────────────────
-## Delimiter: &quot;,&quot;
-## chr (12): created_at, screen_name, text, source, reply_to_screen_name, hasht...
-## dbl (10): tweet_id, user_id, display_text_width, reply_to_status_id, reply_t...
-## lgl  (5): is_quote, is_retweet, quote_count, reply_count, symbols
+<p>Question 1: Find the weather forecast for the next three days online.
+Create a list of lists in which each inner list should be labelled with
+the name of the day of the week. Each inner list should contain named
+elements telling you the temperature, chance of rain and wind speed.</p>
+<pre class="r"><code>Glasgow_weather &lt;- list(
+  &quot;Thursday&quot; = list(temp = 13, chance_of_rain = 80, wind_speed = 11),
+  &quot;Friday&quot; = list(temp = 12, chance_of_rain = 70, wind_speed = 10),
+  &quot;Saturday&quot; = list(temp = 9, chance_of_rain = 70, wind_speed = 9)
+)
+Glasgow_weather</code></pre>
+<pre><code>## $Thursday
+## $Thursday$temp
+## [1] 13
 ## 
-## ℹ Use `spec()` to retrieve the full column specification for this data.
-## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
-<pre class="r"><code>dim(tweets) # 234 rows,27 columns</code></pre>
-<pre><code>## [1] 234  27</code></pre>
-<pre class="r"><code>names(tweets)</code></pre>
-<pre><code>##  [1] &quot;tweet_id&quot;               &quot;user_id&quot;                &quot;created_at&quot;            
-##  [4] &quot;screen_name&quot;            &quot;text&quot;                   &quot;source&quot;                
-##  [7] &quot;display_text_width&quot;     &quot;reply_to_status_id&quot;     &quot;reply_to_user_id&quot;      
-## [10] &quot;reply_to_screen_name&quot;   &quot;is_quote&quot;               &quot;is_retweet&quot;            
-## [13] &quot;favorite_count&quot;         &quot;retweet_count&quot;          &quot;quote_count&quot;           
-## [16] &quot;reply_count&quot;            &quot;hashtags&quot;               &quot;symbols&quot;               
-## [19] &quot;urls_url&quot;               &quot;urls_t.co&quot;              &quot;urls_expanded_url&quot;     
-## [22] &quot;media_type&quot;             &quot;retweet_source&quot;         &quot;retweet_favorite_count&quot;
-## [25] &quot;retweet_retweet_count&quot;  &quot;retweet_user_id&quot;        &quot;retweet_location&quot;</code></pre>
-<p>Question 2: Find the total number of favourites (stored in
-favorite_count) that CodeClan tweets have got. Don’t add a tweet’s
-favorite_count to the total when the tweet was quoted (see the is_quote
-variable).</p>
-<pre class="r"><code>favourites_total &lt;- tweets %&gt;% 
-  filter(is_quote == FALSE) </code></pre>
-<pre class="r"><code>favourites_total %&gt;% 
-  summarise(favorite_total = sum(favorite_count))</code></pre>
-<pre><code>## # A tibble: 1 × 1
-##   favorite_total
-##            &lt;dbl&gt;
-## 1            425</code></pre>
-<p>Question 3: Summarise the mean number of retweets (retweet_count),
-split by the type of platform that was used to tweet (source). Again,
-omit quoted tweets from the mean.</p>
-<pre class="r"><code>tweets %&gt;% 
-  distinct(source)</code></pre>
-<pre><code>## # A tibble: 6 × 1
-##   source            
-##   &lt;chr&gt;             
-## 1 Twitter Web App   
-## 2 Tweetbot for Mac  
-## 3 Hootsuite Inc.    
-## 4 Twitter Web Client
-## 5 Twitter for iPhone
-## 6 TweetDeck</code></pre>
-<pre class="r"><code>retweet_count_mean &lt;- tweets %&gt;% 
-  filter(is_quote == FALSE) %&gt;% 
-  group_by(source) %&gt;% 
-  summarise(mean_retweets = mean(retweet_count))
-retweet_count_mean</code></pre>
-<pre><code>## # A tibble: 6 × 2
-##   source             mean_retweets
-##   &lt;chr&gt;                      &lt;dbl&gt;
-## 1 Hootsuite Inc.              1.43
-## 2 TweetDeck                   5   
-## 3 Tweetbot for Mac            4   
-## 4 Twitter Web App             2.48
-## 5 Twitter Web Client          2   
-## 6 Twitter for iPhone          3.05</code></pre>
-<p>Question 4. Count the total number of likes (i.e. total of
-favorite_count), split by media type, and arrange them from most likes
-to least. Assume that any tweets without a listed media type are of type
-“text”.</p>
-<p>step 1: convert NAs in Media to “Text”, then group and summarise</p>
-<pre class="r"><code>total_likes &lt;- tweets %&gt;%
-  mutate(media_type = coalesce(media_type, &quot;text&quot;)) %&gt;%
-  group_by(media_type) %&gt;% 
-  summarise(total_likes = sum(favorite_count)) %&gt;% 
-  arrange(desc(total_likes))
-  
-total_likes</code></pre>
-<pre><code>## # A tibble: 2 × 2
-##   media_type total_likes
-##   &lt;chr&gt;            &lt;dbl&gt;
-## 1 photo              371
-## 2 text                75</code></pre>
-<p>Question 5. Find the mean number of characters that a CodeClan tweet
-contains. You can either find a way to count the text in the text
-variable, or use the variable display_text_width which contains a count.
-Checking both would be a good idea if possible to see if they match (but
-it’s not essential).</p>
-<pre class="r"><code># count the length of string using &#39;str_length&#39; then check if this is equal to display text width
-tweet_length &lt;- tweets %&gt;% 
-  mutate(tweet_length = str_length(text), .after = text,
-         length_check = (tweet_length == display_text_width))
-head(tweet_length)</code></pre>
-<pre><code>## # A tibble: 6 × 29
-##   tweet_id  user_id creat…¹ scree…² text  tweet…³ lengt…⁴ source displ…⁵ reply…⁶
-##      &lt;dbl&gt;    &lt;dbl&gt; &lt;chr&gt;   &lt;chr&gt;   &lt;chr&gt;   &lt;int&gt; &lt;lgl&gt;   &lt;chr&gt;    &lt;dbl&gt;   &lt;dbl&gt;
-## 1      347   3.25e9 23/05/… CodeCl… @Cod…      80 FALSE   Twitt…     100      NA
-## 2      346   3.25e9 22/05/… CodeCl… We t…     147 FALSE   Twitt…     148      NA
-## 3      345   3.25e9 22/05/… CodeCl… A we…     272 FALSE   Twitt…     140      NA
-## 4      344   3.25e9 22/05/… CodeCl… New …     305 FALSE   Twitt…     140      NA
-## 5      343   3.25e9 22/05/… CodeCl… Scot…     220 FALSE   Twitt…     196      NA
-## 6      342   3.25e9 21/05/… CodeCl… RT @…     239 FALSE   Twitt…     140      NA
-## # … with 19 more variables: reply_to_user_id &lt;dbl&gt;, reply_to_screen_name &lt;chr&gt;,
-## #   is_quote &lt;lgl&gt;, is_retweet &lt;lgl&gt;, favorite_count &lt;dbl&gt;,
-## #   retweet_count &lt;dbl&gt;, quote_count &lt;lgl&gt;, reply_count &lt;lgl&gt;, hashtags &lt;chr&gt;,
-## #   symbols &lt;lgl&gt;, urls_url &lt;chr&gt;, urls_t.co &lt;chr&gt;, urls_expanded_url &lt;chr&gt;,
-## #   media_type &lt;chr&gt;, retweet_source &lt;chr&gt;, retweet_favorite_count &lt;dbl&gt;,
-## #   retweet_retweet_count &lt;dbl&gt;, retweet_user_id &lt;dbl&gt;, retweet_location &lt;chr&gt;,
-## #   and abbreviated variable names ¹​created_at, ²​screen_name, ³​tweet_length, …</code></pre>
-<p>Question 6. The code_clan_info.csv data file contains status_url
-along with other info. Load this in, and join it to the code_clan_tweets
-tibble, so that you have a status_url for each tweet. Decide which
-variable to join the tibbles on.</p>
-<pre class="r"><code>info &lt;- read_csv(&quot;code_clan_info.csv&quot;)</code></pre>
-<pre><code>## Rows: 234 Columns: 15
-## ── Column specification ────────────────────────────────────────────────────────
-## Delimiter: &quot;,&quot;
-## chr (7): status_url, name, location, description, url, account_created_at, p...
-## dbl (6): tweet_id, followers_count, friends_count, listed_count, statuses_co...
-## lgl (2): protected, verified
+## $Thursday$chance_of_rain
+## [1] 80
 ## 
-## ℹ Use `spec()` to retrieve the full column specification for this data.
-## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
-<pre class="r"><code>names(info)</code></pre>
-<pre><code>##  [1] &quot;tweet_id&quot;           &quot;status_url&quot;         &quot;name&quot;              
-##  [4] &quot;location&quot;           &quot;description&quot;        &quot;url&quot;               
-##  [7] &quot;protected&quot;          &quot;followers_count&quot;    &quot;friends_count&quot;     
-## [10] &quot;listed_count&quot;       &quot;statuses_count&quot;     &quot;favourites_count&quot;  
-## [13] &quot;account_created_at&quot; &quot;verified&quot;           &quot;profile_url&quot;</code></pre>
-<pre class="r"><code>tweet_join_info &lt;- 
-  full_join(tweets, info, by = &quot;tweet_id&quot;)
+## $Thursday$wind_speed
+## [1] 11
+## 
+## 
+## $Friday
+## $Friday$temp
+## [1] 12
+## 
+## $Friday$chance_of_rain
+## [1] 70
+## 
+## $Friday$wind_speed
+## [1] 10
+## 
+## 
+## $Saturday
+## $Saturday$temp
+## [1] 9
+## 
+## $Saturday$chance_of_rain
+## [1] 70
+## 
+## $Saturday$wind_speed
+## [1] 9</code></pre>
+<p>Question 2: Using the list you’ve just made find:</p>
+<p>The chance of rain tomorrow</p>
+<pre class="r"><code>Glasgow_weather$Friday$chance_of_rain</code></pre>
+<pre><code>## [1] 70</code></pre>
+<p>The wind speed on the day after tomorrow</p>
+<pre class="r"><code>Glasgow_weather[[2]][[3]]</code></pre>
+<pre><code>## [1] 10</code></pre>
+<p>The temperature tomorrow</p>
+<pre class="r"><code>Glasgow_weather$Thursday$temp</code></pre>
+<pre><code>## [1] 13</code></pre>
+<p>Question 3. Find a 14 day forecast online and create a matrix of the
+forecasts for temperature, where each week is one row and columns
+correspond to days.</p>
+<p>You will want to give a name to the matrix you create.</p>
+<pre class="r"><code>weather_matrix &lt;- matrix(c(13,14,14,11,12,14,13,13,13,13,13,13,13,13), nrow = 2)
+weather_matrix</code></pre>
+<pre><code>##      [,1] [,2] [,3] [,4] [,5] [,6] [,7]
+## [1,]   13   14   12   13   13   13   13
+## [2,]   14   11   14   13   13   13   13</code></pre>
+<p>Question 4: From the matrix you just made select:</p>
+<p>The third day of the second week</p>
+<pre class="r"><code>weather_matrix[2, 3]</code></pre>
+<pre><code>## [1] 14</code></pre>
+<p>The whole second week</p>
+<pre class="r"><code>weather_matrix[2, ]</code></pre>
+<pre><code>## [1] 14 11 14 13 13 13 13</code></pre>
+<p>The first, third and fifth days in both weeks</p>
+<pre class="r"><code>weather_matrix[,c(1, 3, 5)]</code></pre>
+<pre><code>##      [,1] [,2] [,3]
+## [1,]   13   12   13
+## [2,]   14   14   13</code></pre>
+<p>Question 5. Write a function that pre-appends “The answer is:” to any
+character input, while for numeric input, it either just returns the
+number for numbers less than 10, or divides the number by 10 for numbers
+greater than 10. For anything else return “Invalid input”.</p>
+<pre class="r"><code>x &lt;- &quot;Hello&quot;
 
-names(tweet_join_info)</code></pre>
-<pre><code>##  [1] &quot;tweet_id&quot;               &quot;user_id&quot;                &quot;created_at&quot;            
-##  [4] &quot;screen_name&quot;            &quot;text&quot;                   &quot;source&quot;                
-##  [7] &quot;display_text_width&quot;     &quot;reply_to_status_id&quot;     &quot;reply_to_user_id&quot;      
-## [10] &quot;reply_to_screen_name&quot;   &quot;is_quote&quot;               &quot;is_retweet&quot;            
-## [13] &quot;favorite_count&quot;         &quot;retweet_count&quot;          &quot;quote_count&quot;           
-## [16] &quot;reply_count&quot;            &quot;hashtags&quot;               &quot;symbols&quot;               
-## [19] &quot;urls_url&quot;               &quot;urls_t.co&quot;              &quot;urls_expanded_url&quot;     
-## [22] &quot;media_type&quot;             &quot;retweet_source&quot;         &quot;retweet_favorite_count&quot;
-## [25] &quot;retweet_retweet_count&quot;  &quot;retweet_user_id&quot;        &quot;retweet_location&quot;      
-## [28] &quot;status_url&quot;             &quot;name&quot;                   &quot;location&quot;              
-## [31] &quot;description&quot;            &quot;url&quot;                    &quot;protected&quot;             
-## [34] &quot;followers_count&quot;        &quot;friends_count&quot;          &quot;listed_count&quot;          
-## [37] &quot;statuses_count&quot;         &quot;favourites_count&quot;       &quot;account_created_at&quot;    
-## [40] &quot;verified&quot;               &quot;profile_url&quot;</code></pre>
-<pre class="r"><code>dim(tweet_join_info)</code></pre>
-<pre><code>## [1] 234  41</code></pre>
-<p>Question 7. From your new joined data, create a new tibble
-codeclan_hashtags containing only tweet_id and hashtags, then convert
-hashtags into lowercase for analysis. Keep only those tweets with
-hashtags.</p>
-<pre class="r"><code>codeclan_hashtags &lt;- tweet_join_info %&gt;% 
-  select(tweet_id, hashtags) %&gt;% 
-  mutate(hashtags = str_to_lower(hashtags)) %&gt;% 
-  filter(!is.na(hashtags))
-head(codeclan_hashtags)</code></pre>
-<pre><code>## # A tibble: 6 × 2
-##   tweet_id hashtags
-##      &lt;dbl&gt; &lt;chr&gt;   
-## 1      345 dundee  
-## 2      344 tech    
-## 3      342 techmums
-## 4      341 techmums
-## 5      340 techmums
-## 6      336 techmums</code></pre>
-<p>Extension: Question 8 Some tweets have more than one hashtag, denoted
-by the c( symbols at the start of the string. Use the str_sub() and
-str_detect() functions and your codeclan_hashtags tibble from above to
-find all the cases in which the hashtag string begins with
-charactersc(.</p>
-<pre class="r"><code>first_letters &lt;- codeclan_hashtags %&gt;% 
-  mutate(first_letters= str_sub(hashtags, start = 1, end = 2)) %&gt;% 
-  filter(str_detect(first_letters, &quot;c\\(&quot;))</code></pre>
-<p>Question 9. Use the str_detect() function to find all tweets with
-text that mentions “Edinburgh”, and count how many such tweets there
-are.</p>
-<pre class="r"><code>Edinburgh &lt;- tweets %&gt;% 
-  select(text) %&gt;%
-  filter(str_detect(text, &quot;Edinburgh&quot;)) %&gt;% 
-  summarise(count = n())
-Edinburgh</code></pre>
-<pre><code>## # A tibble: 1 × 1
-##   count
-##   &lt;int&gt;
-## 1    33</code></pre>
-<p>Question 10. Use str_extract_all() with a regular expression to find
-out which Twitter users CodeClan have been tweeting.</p>
-<pre class="r"><code>user_pattern &lt;- &quot;@[a-z0-9]+&quot;
-users &lt;- tweets %&gt;% 
-  select(text)
-str_extract_all(users, user_pattern)</code></pre>
-<pre><code>## Warning in stri_extract_all_regex(string, pattern, simplify = simplify, :
-## argument is not an atomic vector; coercing</code></pre>
-<pre><code>## [[1]]
-##  [1] &quot;@eplacementscot&quot;  &quot;@pollyp&quot;          &quot;@lrcfs&quot;           &quot;@eplacementscot&quot; 
-##  [5] &quot;@dundeeuni&quot;       &quot;@lrcfs&quot;           &quot;@lrcfs&quot;           &quot;@newsdirect&quot;     
-##  [9] &quot;@edfringe&quot;        &quot;@alzscot&quot;         &quot;@newsdirect&quot;      &quot;@alzscot&quot;        
-## [13] &quot;@cellosignal&quot;     &quot;@cellosignal&quot;     &quot;@codeclan&quot;        &quot;@scotlandis&quot;     
-## [17] &quot;@futerra&quot;         &quot;@socialgoodhq&quot;    &quot;@futerra&quot;         &quot;@topolytics&quot;     
-## [21] &quot;@siobhanmkilts&quot;   &quot;@alterwaste&quot;      &quot;@loralquinn&quot;      &quot;@futerra&quot;        
-## [25] &quot;@aprilwensel&quot;     &quot;@aprilwensel&quot;     &quot;@johnjpeebles&quot;    &quot;@aprilwensel&quot;    
-## [29] &quot;@scotlandis&quot;      &quot;@aprilwensel&quot;     &quot;@aprilwensel&quot;     &quot;@hazel&quot;          
-## [33] &quot;@seanmtracey&quot;     &quot;@rcruicks&quot;        &quot;@yaminigrao&quot;      &quot;@shamblesmiller&quot; 
-## [37] &quot;@codeclan&quot;        &quot;@colin&quot;           &quot;@airtsltd&quot;        &quot;@pollyp&quot;         
-## [41] &quot;@cityregiondeal&quot;  &quot;@gezthepez88&quot;     &quot;@cortexww&quot;        &quot;@moraychamber&quot;   
-## [45] &quot;@morayeconomy&quot;    &quot;@moraychamber&quot;    &quot;@morayeconomy&quot;    &quot;@kelseyg&quot;        
-## [49] &quot;@aframevr&quot;        &quot;@digitfyi&quot;        &quot;@waspsstudios&quot;    &quot;@paulabrown84&quot;   
-## [53] &quot;@beezereuan&quot;      &quot;@claireedenscott&quot; &quot;@infventures&quot;     &quot;@alistairforbes&quot; 
-## [57] &quot;@flackboy&quot;        &quot;@infventures&quot;     &quot;@cultivatehq&quot;     &quot;@eagle&quot;          
-## [61] &quot;@infventures&quot;     &quot;@alistairforbes&quot;  &quot;@scotlandis&quot;      &quot;@bletchleypark&quot;  
-## [65] &quot;@stephenfry&quot;      &quot;@pollyp&quot;          &quot;@scotlandis&quot;      &quot;@pollyp&quot;         
-## [69] &quot;@time2dineuk&quot;     &quot;@chat&quot;            &quot;@wallet&quot;          &quot;@pg&quot;             
-## [73] &quot;@trade&quot;           &quot;@scot&quot;            &quot;@britanniayacht&quot;  &quot;@curious&quot;        
-## [77] &quot;@curious&quot;         &quot;@codeclan&quot;        &quot;@codeclan&quot;        &quot;@codeclan&quot;       
-## [81] &quot;@rcruicks&quot;        &quot;@codeclan&quot;        &quot;@aframevr&quot;        &quot;@codeclan&quot;       
-## [85] &quot;@aframevr&quot;</code></pre>
-<p>Cailean’s answer</p>
-<pre class="r"><code>tweets %&gt;% 
-  mutate(tweeted_to = str_extract_all(text, pattern = &quot;@+[A-Za-z0-9\\_]+&quot;), .after = text) %&gt;% 
-  unnest_wider(tweeted_to, names_sep = &quot;_&quot;) %&gt;% 
-  select(tweeted_to_1:tweeted_to_6)</code></pre>
-<pre><code>## # A tibble: 234 × 6
-##    tweeted_to_1     tweeted_to_2  tweeted_to_3  tweeted_to_4   tweeted…¹ tweet…²
-##    &lt;chr&gt;            &lt;chr&gt;         &lt;chr&gt;         &lt;chr&gt;          &lt;chr&gt;     &lt;chr&gt;  
-##  1 @CodeClanScot    @YouTube      &lt;NA&gt;          &lt;NA&gt;           &lt;NA&gt;      &lt;NA&gt;   
-##  2 &lt;NA&gt;             &lt;NA&gt;          &lt;NA&gt;          &lt;NA&gt;           &lt;NA&gt;      &lt;NA&gt;   
-##  3 @eplacementscot  @GA_Dundee    @CodeClanScot @OUScotland    &lt;NA&gt;      &lt;NA&gt;   
-##  4 @IngledewStephen @C_Leaver     @MaMChannel   @GerryMcCusker @DonaldM… @pollyp
-##  5 &lt;NA&gt;             &lt;NA&gt;          &lt;NA&gt;          &lt;NA&gt;           &lt;NA&gt;      &lt;NA&gt;   
-##  6 @TechmumsHQ      @CodeClanScot &lt;NA&gt;          &lt;NA&gt;           &lt;NA&gt;      &lt;NA&gt;   
-##  7 @TechmumsHQ      &lt;NA&gt;          &lt;NA&gt;          &lt;NA&gt;           &lt;NA&gt;      &lt;NA&gt;   
-##  8 @CodeClanScot    &lt;NA&gt;          &lt;NA&gt;          &lt;NA&gt;           &lt;NA&gt;      &lt;NA&gt;   
-##  9 &lt;NA&gt;             &lt;NA&gt;          &lt;NA&gt;          &lt;NA&gt;           &lt;NA&gt;      &lt;NA&gt;   
-## 10 &lt;NA&gt;             &lt;NA&gt;          &lt;NA&gt;          &lt;NA&gt;           &lt;NA&gt;      &lt;NA&gt;   
-## # … with 224 more rows, and abbreviated variable names ¹​tweeted_to_5,
-## #   ²​tweeted_to_6</code></pre>
-<p>pattern translate = one or more @ followed by alpha numberic,
-esca</p>
-<p>unnest wider returns one column for each instance, each column called
-“Tweeted_to” with an “_” to separate between each next column
-(i.e. “tweeted_to_1”, “tweeted_to_2” and so on…)</p>
-<p>%&gt;% str_extract_all(users, user_pattern)</p>
-<p>user_pattern &lt;- “@[a-z0-9]+”</p>
+
+Q5_function &lt;- if(is.character(x)){
+  print(str_c(&quot;The answer is:&quot;, x), sep = &quot; &quot;)
+} else {
+  if(x &lt; 10)
+  print(x)
+  if(x &gt; 10){
+  print(x / 10)}
+}</code></pre>
+<pre><code>## [1] &quot;The answer is:Hello&quot;</code></pre>
+<p>Couldn’t add in the “invalid number” condition!!</p>
+<pre class="r"><code>x &lt;- 23
+
+
+Q5_function &lt;- if(is.character(x)){
+  print(str_c(&quot;The answer is:&quot;, x), sep = &quot; &quot;)
+} else {
+  if(x &lt; 10)
+  print(x)
+  if(x &gt; 10){
+  print(x / 10)}
+print(&quot;invalid number&quot;)}</code></pre>
+<pre><code>## [1] 2.3
+## [1] &quot;invalid number&quot;</code></pre>
+<p>Question 6. Write a function which checks if two vectors have the
+same elements.</p>
+<p>If they have the same elements in the same order, return “Exactly the
+same” If they have the same elements but in a different order, return
+“The same” If they don’t have the same elements, return “Different”.</p>
+<pre class="r"><code>a &lt;- c(1, 2, 3)
+b &lt;- c(1, 2, 3)
+
+(a == b)</code></pre>
+<pre><code>## [1] TRUE TRUE TRUE</code></pre>
+<pre class="r"><code>a &lt;- c(3, 2, 1)
+b &lt;- c(1, 2, 3)
+
+a_sorted &lt;- sort(a)
+a_joined &lt;- str_c(a, collapse = &#39;, &#39;)
+a_joined_sorted &lt;- str_c(a_sorted, collapse = &#39;, &#39;)
+b_sorted &lt;- sort(b)
+b_joined &lt;- str_c(b, collapse = &#39;, &#39;)
+b_joined_sorted &lt;- str_c(b_sorted, collapse = &#39;, &#39;)
+
+Q6_function &lt;- if(a_joined == b_joined){
+  print(&quot;Exactly the same&quot;)
+}
+  if(a_joined_sorted == b_joined_sorted){
+      print(&quot;same&quot;)
+  }</code></pre>
+<pre><code>## [1] &quot;same&quot;</code></pre>
+<pre class="r"><code>      if(a_joined != b_joined){
+      print(&quot;Different&quot;)
+    }</code></pre>
+<pre><code>## [1] &quot;Different&quot;</code></pre>
 
 
 
