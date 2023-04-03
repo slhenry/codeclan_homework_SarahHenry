@@ -68,7 +68,7 @@ x <- "Hello"
 
 
 Q5_function <- if(is.character(x)){
-  print(str_c("The answer is:", x), sep = " ")
+  print(str_c("The answer is: ", x), sep = " ")
 } else {
   if(x < 10)
   print(x)
@@ -87,9 +87,32 @@ Q5_function <- if(is.character(x)){
   if(x < 10)
   print(x)
   if(x > 10){
-  print(x / 10)}
+  print(x / 10)
+  }
 print("invalid number")}
 ```
+
+Answers after recap - failed to put in function( )
+
+```{r}
+x <- "Hello"
+
+
+Q5_function <- function(x){
+# check if character first
+  if(is.character(x)){
+  print(str_c("The answer is: ", x), sep = " ")
+  } else if (is.numeric(x)) {
+# check if numeric
+  if(x < 10)
+  print(x)
+  } else if {
+  return(x > 10)}
+  }
+}
+```
+
+
 
 
 
@@ -133,6 +156,30 @@ Q6_function <- if(a_joined == b_joined){
       print("Different")
     }
 
+```
+Answer after recap
+
+```{r}
+x <- c(1, 2, 3)
+y <- c(3, 2, 1)
+z <- c(2, 3, 4)
+
+test_sameness <- function (x, y) {
+#1. if x and y are identical print TRUE
+if(all(x == y)){
+  print("Exactly the same")
+}
+# if sorted x and y are identical: print tru
+else if(all(sort(x) == sort(y))){
+  print("Same")
+} else {
+  print("Different")
+}
+}
+
+test_sameness(x, x)
+test_sameness(x, y)
+test_sameness(x, z)
 ```
 
 
