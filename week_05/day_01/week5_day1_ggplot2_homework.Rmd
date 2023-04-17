@@ -1,0 +1,176 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-04-17"
+---
+
+```{r}
+library(tidyverse)
+```
+
+Create a custom colour palette
+
+```{r}
+col_scheme <- c("#E89FE9", "#50434F", "#B6A7B5", "#F9A472", "#BD7040")
+col_scheme
+```
+
+
+
+Read in data
+```{r}
+qb_competitors <- CodeClanData::qb_competitors
+qb_monthly_sales <- CodeClanData::qb_monthly_sales
+qb_revenue_breakdown <- CodeClanData::qb_revenue_breakdown
+qb_device_data <- CodeClanData::qb_device_data
+```
+
+Q1: Take the data in the dataset qb_revenue_breakdown and make a stacked bar chart showing the sources of revenue across the two years in the dataset.
+
+```{r}
+qb_revenue_breakdown %>% 
+  ggplot()+
+  geom_bar(aes(x = Year, y = Revenue, fill = Product), stat = "identity")+
+  labs(
+    x = "Year",
+    y = "Revenue",
+    title = "Revenue Breakdown for QikBit in 2018 and 2019")+
+  scale_fill_manual(
+    values = c(
+      "Accessories" = "#E89FE9",
+      "Smart Watches" = "#B6A7B5",
+      "Subscription Services" = "#F9A472",
+      "Trackers" = "#50434F")
+  )+
+  theme_light()
+
+```
+
+#Q2: Make a line chart showing monthly sales of the “flagship product” - the ‘KwikBit Unit 1’ - over the last year. This data is inside qb_monthly_sales, but you will need to use filter() or subset() (base R).
+
+
+```{r}
+KwikBit_unit1 <- qb_monthly_sales %>% 
+  filter(Cashflow == "Kwikbit Unit 1 Sales") 
+```
+
+
+```{r}
+ggplot(KwikBit_unit1)+
+  geom_line(aes(x = Date, y = Amount), colour = "#F9A472", size = 2)+
+  labs(
+    x = "Date",
+    y = "Amount",
+    title = "Monthly sales of Kwikbit Unit 1 between Aug 2018 and July 2019")+
+  theme_light()
+```
+
+
+Q3: Make a line chart showing monthly revenue and costs over the last year. This data is also in qb_monthly_sales.
+
+
+```{r}
+qb_monthly_sales %>% 
+  filter(Cashflow != "Kwikbit Unit 1 Sales") %>% 
+  ggplot()+
+  geom_line(aes(x = Date, y = Amount, group = Cashflow, colour = Cashflow), size = 1)+
+  labs(
+    x = "Date",
+    y = "Amount",
+    title = "Monthly revenue and costs between Aug 2018 and July 2019")+
+  scale_colour_manual(values = c(col_scheme))+
+  theme_light()
+```
+
+Q4:Show annual sales of personal fitness trackers over the last 5 years broken down by company as a ribbon plot (use geom_area). This data is in qb_competitors.
+
+```{r}
+qb_competitors <- qb_competitors %>% 
+  mutate(Revenue_thousands = Revenue / 1000)
+```
+
+
+```{r}
+qb_competitors %>% 
+  ggplot()+
+  geom_area(aes(x = Year, y = Revenue_thousands, group = Company, colour = Company), size = 1, alpha = 0.2)+
+  labs(
+    x = "Year",
+    y = "Revenue (thousands)",
+    title = "Annual Sales of Personal Trackers to Top 4 Competitors in 2015 - 2019"
+  )+
+  scale_colour_manual(values = c(col_scheme))+
+  theme_light()
+```
+Q5:Now show the sales from the four competitors as a line graph. Include an extra layer that shows the data points used to make the lines.
+
+```{r}
+  ggplot(qb_competitors)+
+  aes(x = Year, y = Revenue_thousands, group = Company, colour = Company)+
+  geom_line(aes(group = Company), size = 1)+
+  geom_point(alpha = 0.5, size = 2)+
+  labs(
+    x = "Year",
+    y = "Revenue (Thousands)",
+    title = "Annual sales of personal trackers to top 4 competitors in 2015 - 2019")+
+  scale_colour_manual(values = c(col_scheme))+
+  theme_light()
+```
+
+
+Q6: Now the company wants to compare the number of steps that their device counts vs. their competitors. Make a line graph of the number of steps throughout time, and use faceting to compare between companies and people. The data for this is in qb_device_data.
+
+
+```{r}
+device_grouped <- qb_device_data %>% 
+  group_by(device, id, hours) %>% 
+  summarise(total_steps_per_hour= sum(counts))
+
+head(device_grouped)
+```
+
+
+```{r}
+device_grouped%>% 
+  ggplot(aes(x = hours, y = total_steps_per_hour, group = id, colour = device))+
+  geom_line(size = 2)+
+  facet_wrap(device ~ id )+
+  scale_colour_manual(values = c(col_scheme))+
+  theme_light()
+```
+
+
+```{r}
+device_grouped%>% 
+  ggplot(aes(x = hours, y = total_steps_per_hour, group = id, colour = device))+
+  geom_line(size = 1)+
+  scale_colour_manual(values = c(col_scheme))+
+  facet_wrap(~ id )+
+  theme_light()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
