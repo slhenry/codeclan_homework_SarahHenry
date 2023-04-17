@@ -136,17 +136,26 @@ device_grouped%>%
   geom_line(size = 2)+
   facet_wrap(device ~ id )+
   scale_colour_manual(values = c(col_scheme))+
-  theme_light()
+  theme_light()+
+  labs(
+    y = "Total steps per hour",
+    title = "Comparison of Mumber of Steps by Qikbit and Top 3 Competitors",
+    subtitle = "Measurements performed on 5 individuals"
+  )
 ```
 
 
 ```{r}
 device_grouped%>% 
   ggplot(aes(x = hours, y = total_steps_per_hour, group = id, colour = device))+
-  geom_line(size = 1)+
+  geom_line(size = 2)+
   scale_colour_manual(values = c(col_scheme))+
   facet_wrap(~ id )+
-  theme_light()
+  theme_light()+
+  labs(
+    y = "Total steps per hour",
+    title = "Step measurements from Qikbit and 3 similar devices",
+    subtitle = "Measurements for individuals overlaid to compare")
 ```
 
 
