@@ -1,0 +1,37 @@
+---
+title: "Week5 Day 3 homework app"
+output: html_notebook
+---
+
+
+```{r}
+library(tidyverse)
+
+backpack_data <- CodeClanData::backpack
+
+```
+
+```{r}
+backpack_data %>% 
+  distinct(year) %>% 
+  pull()
+```
+```{r}
+backpack_data %>% 
+  filter(sex == "Female",
+         year == "5") %>% 
+  ggplot()+
+  aes(x = major, y = backpack_weight)+
+  geom_col()+
+  coord_flip()
+```
+
+
+```{r}
+backpack_data %>% 
+  distinct(major) %>% 
+  arrange()
+```
+
+
+
