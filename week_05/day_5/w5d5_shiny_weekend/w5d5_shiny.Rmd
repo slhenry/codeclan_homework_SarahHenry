@@ -1,0 +1,108 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# week5 Shiny weekend homework
+
+load libraries and read in data
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+```
+
+```{r}
+game_sales <- CodeClanData::game_sales
+```
+
+Explore data
+```{r}
+game_sales%>% 
+  distinct(platform) 
+
+```
+
+
+
+Write code to make the top selling games chart
+
+```{r}
+game_sales %>% 
+  filter(genre == "Action",
+         publisher == "Nintendo")%>%
+  arrange(desc(sales)) %>% 
+  head(10) %>% 
+  ggplot()+
+  aes(x = reorder(name, sales), y = sales)+
+  geom_col()+
+  coord_flip()+
+  theme(text = element_text(size = 14))
+
+```
+
+
+```{r}
+game_sales %>% 
+  filter(genre == "Action", 
+         publisher == "Nintendo")
+```
+
+Create vector for genres, and put into alphabetical order
+```{r}
+genre_list <- game_sales %>% 
+  distinct(genre) %>% 
+  pull() %>% 
+  sort()
+```
+
+
+Write code for scatter plot
+
+
+```{r}
+game_sales %>%
+  filter(publisher == "Nintendo")%>% 
+  ggplot(tooltip = text)+
+  aes(x = user_score, y = critic_score, 
+      fill = rating, 
+      text = paste0("Game: ", name))+
+  geom_point(size = 3)+
+  labs(
+    x = "User score",
+    y = "Critic score",
+    title = "Games scores"
+  )+
+  theme_classic()+
+  theme(text = element_text(size = 12))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
