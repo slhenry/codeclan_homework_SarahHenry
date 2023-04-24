@@ -1,0 +1,205 @@
+---
+title: "Titanic Homework - week6 day 1"
+output: html_notebook
+---
+load libraries
+```{r}
+library(tidyverse)
+library(gtools)
+library(janitor)
+source("prob.R")
+```
+
+
+read in data
+```{r}
+titanic <- read_csv("data/titanic.csv")
+```
+
+Calculate the conditional probabilities prob(survived∣crew)
+ and prob(survived∣passenger)
+ to settle this dispute.
+ 
+ 
+ Step 1. create a new column 'crew' with TRUE/FALSE 
+
+```{r}
+titanic %>% 
+  distinct(class)
+```
+
+```{r}
+titanic %>% 
+  group_by(class) %>% 
+  count()
+```
+
+
+ 
+```{r}
+crew <- titanic %>% 
+  mutate(crew = ifelse(class %in% c("engineering crew", "victualling crew", "restaurant staff", "deck crew"), "TRUE", FALSE))
+```
+
+
+Step 2: calculate the proportion of crew that survived
+```{r}
+crew %>% 
+  filter(crew == TRUE) %>% 
+  summarise(prob = sum(survived == "yes")/ n())
+```
+
+ 
+Calculate proportion of passengers to survive
+
+```{r}
+crew %>% 
+  filter(crew == FALSE) %>% 
+  summarise(prob = sum(survived == "yes")/ n())
+```
+THerefore a higher proportion of passengers survived the Titanic sinking. 
+
+
+
+## Question 1: If I roll a six-sided dice once, what is the probability of getting a number less than 5?
+
+Prob(event) = number_outcomes / number_all_outcomes 
+
+Prob(rolling_4) = 1, 2, 3, 4, / 1, 2, 3, 4, 5, 6)
+Prob(rolling_4) = 4 / 6 = 0.667
+
+
+## Question 2: How many outcomes are there in the sample space of an experiment in which we toss three dice?
+
+```{r}
+# sample space for roll of 3 dice
+s_three_dice <- rolldie(3)
+s_three_dice %>% 
+  nrow()
+```
+Question 3: In an experiment where we roll four dice:
+
+- how many outcomes are in the event where the total of the four dice equals 5, 6 or 7)?
+n(total_5_6or7) = 34
+
+```{r}
+s_four_dice <- rolldie(4)
+
+s_four_dice %>% 
+  mutate(total = X1 + X2 + X3 + X4) %>% 
+  filter(total == 5 |
+         total == 6 |
+         total == 7)
+```
+
+
+- what is the probability of this event?
+```{r}
+s_four_dice %>% 
+  nrow()
+```
+Probability of rolling 4 dice with total 5, 6, or 7 =
+Prob(rolling_5_6or7) = n(total_5_6or7) / n(all_outcomes) = 34 / 1296 = 0.0262
+
+
+
+
+- what assumptions do we apply in answering part ii?
+That all numbers are weighted equally 
+ 
+## Question 4: Five chairs are placed in a row in a room, along with five people of differing height. The people sit down randomly on the chairs. What is the probability that they sit in order of decreasing height, left to right?
+
+
+```{r}
+heights <- c("Al", "Bobby", "Charlotte", "David", "Emily")
+
+length(heights)
+# n = length(candidates)
+# r = 5
+# v = candidates
+heights_order <- as_tibble(
+  permutations(n = length(heights),
+               r = 5,
+               v = heights,
+               repeats.allowed = FALSE))
+
+nrow(heights_order)
+
+```
+There are 120 possible combinations, with only one being the correct order. Therefore
+prob = 1 / 120
+= 0.0083
+
+
+# Question 5: I roll six dice:
+
+- what is the probability I see the numbers 6, 5, 4, 3, 2 and 1 in order on the dice, left to right?
+
+```{r}
+dice <- c(1, 2, 3, 4, 5, 6)
+
+dice_order <- as_tibble(
+  permutations(n = length(dice),
+               r = 6,
+               v = dice,
+               repeats.allowed = TRUE)
+) 
+nrow(dice_order)
+
+```
+
+
+```{r}
+dice_order %>% 
+  filter(V1 == 6,
+         V2 == 5, 
+         V3 == 4,
+         V4 == 3,
+         V5 == 2,
+         V6 == 1)
+```
+Prob(6_1ordered) = nrow(6,5,4,3,2,1) / nrow(all)
+                    1 / 46656
+                    0.0000214
+
+
+- what is the probability I see one each of the numbers 6, 5, 4, 3, 2 and 1 on the dice regardless of order?
+
+
+```{r}
+dice_comb <- as_tibble(
+  combinations(n = length(dice),
+               r = 6,
+               v = dice,
+               repeats.allowed = TRUE)
+) 
+nrow(dice_comb)
+```
+Prob(6:1) = nrow(6-1) / nrow(all)
+                    1 / 462
+                    0.00216
+                    
+                    
+                    
+# Question 6: If I draw a single card from a 52-card deck, and it is black, what is the probability that its suit is spades?
+
+conditional probability where:
+event A: draw spades
+event B: draw black card
+
+
+
+Step 1: calculate prob(A n B)
+prob(A n B) = num(A n B) / num(all)
+            = 13        / 52
+            0.25
+
+
+Step 2: Calculate probability of spades|black card
+
+p(spades|black_card) = prob(A n B) / prob(black_card)
+prob(spades|black) = (0.25) / (0.5)
+                  = 0.5
+                  
+
+Therefore, probability of blackcard and spades is 0.5
