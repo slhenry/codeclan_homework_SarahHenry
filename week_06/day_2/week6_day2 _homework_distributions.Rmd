@@ -1,0 +1,158 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+# Week 6, day 2 homework - Distributions
+
+```{r}
+library(janitor)
+library(tidyverse)
+```
+
+## Question 1: load data and explore it
+```{r}
+mobile_data <- read_csv("data/20190928-items.csv") %>% 
+  clean_names()
+```
+
+```{r}
+head(mobile_data)
+```
+
+```{r}
+glimpse(mobile_data)
+```
+## Question 2: Find the brand with the highest numbers of phones in the dataset.
+
+```{r}
+mobile_data %>% 
+  group_by(brand) %>% 
+  summarise(count = n()) %>% 
+  arrange(desc(count))
+```
+## Question 3: For your top brand, plot the distribution of phone ratings as a probability density, overlaying a fitted normal distribution. Do you think the normal distribution provides a good model of these ratings?
+
+Step 1: first calculate the mean and standard deviation for the ratings of Samsung phones
+
+```{r}
+mobile_data_stats <- mobile_data %>% 
+  filter(brand == "Samsung") %>% 
+  summarise(num = n(),
+            mean = mean(rating),
+            sd = sd(rating))
+
+mobile_data_stats
+```
+
+Step 2: plot the distribution of ratings for Samsung phones
+
+
+```{r}
+mobile_dist <- mobile_data %>% 
+  filter(brand == "Samsung") %>% 
+  ggplot(aes(x = rating))+
+  geom_histogram(col = "white", bins = 40)
+
+ mobile_dist
+```
+
+
+Step 2: calculate the probability density and overlay the fitted normal distribution curve
+
+```{r}
+mobile_data %>% 
+  filter(brand == "Samsung") %>% 
+  ggplot(aes(x = rating))+
+  geom_histogram(aes(y = after_stat(density)), col = "white", bins = 40)+
+  stat_function(
+    fun = dnorm,
+    args = list(
+      mean = mobile_data_stats$mean,
+      sd = mobile_data_stats$sd
+    ),
+    col = "red"
+)
+```
+The distribution curve fits the data reasonably well, the mean and sd correspond to the calculated values earlier. It looks slightly left skewed, due to some very low ratings. 
+
+
+Question 4: We can be more quantitative in comparing the distribution of top brand ratings with a normal distribution. You calculated the mean() and sd() of your distribution in an earlier question. Use these values to calculate the proportions of ratings within one-, two- and three standard deviations of the mean. Compare these proportions with those you expect for a normal distribution.
+
+
+step 1: 
+
+Calculate z-scores for the salary
+```{r}
+samsung_data <- samsung_data %>% 
+  mutate(z_score = scale(rating))
+```
+
+
+Filter the ratings with a z score of +/- 1SD (0.6847859)
+
+```{r}
+samsung_data %>% 
+  filter(z_score >= -0.685,
+        z_score <= 0.685) %>% 
+  summarise(rating_total = n(), 
+            proportion_total = (rating_total/720) * 100)
+```
+
+```{r}
+samsung_data %>% 
+  nrow()
+```
+
+
+
+Step 2: 
+Calculate the proportion of rating within 1SD
+```{r}
+samsung_data %>% 
+  filter(z_score >= -0.685,
+        z_score <= 0.685) %>% 
+  summarise(rating_total = n(), 
+            proportion_total = rating_total/792 * 100)
+```
+Calculate the proportion of rating within 2SD
+```{r}
+samsung_data %>% 
+  filter(z_score >= (-0.685 * 2),
+        z_score <= (0.685 * 2)) %>% 
+  summarise(rating_total = n(), 
+            proportion_total = rating_total/792 * 100)
+```
+Calculate the proportion of rating within 3SD
+
+```{r}
+samsung_data %>% 
+  filter(z_score >= (-0.685 * 3),
+        z_score <= (0.685 * 3)) %>% 
+  summarise(rating_total = n(), 
+            proportion_total = rating_total/792 * 100)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
