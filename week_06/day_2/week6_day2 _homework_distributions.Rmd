@@ -134,13 +134,40 @@ samsung_data %>%
             proportion_total = rating_total/792 * 100)
 ```
 
+```{r}
+
+```
+
+## Method using Hint
+
+Calculate proportion with 1SD
+```{r}
+samsung_data %>%
+  filter(rating >= mobile_data_stats$mean - mobile_data_stats$sd) %>%
+  filter(rating <= mobile_data_stats$mean + mobile_data_stats$sd) %>%
+  summarise(prop_within_1sd = n() / nrow(samsung_data))
+```
 
 
 
+Calculate proportion with 2x SD
+
+```{r}
+samsung_data %>%
+  filter(rating >= mobile_data_stats$mean - (mobile_data_stats$sd * 2)) %>%
+  filter(rating <= mobile_data_stats$mean + (mobile_data_stats$sd * 2)) %>%
+  summarise(prop_within_2sd = n() / nrow(samsung_data))
+```
 
 
+Calculate proportion with 3x SD
 
-
+```{r}
+samsung_data %>%
+  filter(rating >= mobile_data_stats$mean - (mobile_data_stats$sd * 3)) %>%
+  filter(rating <= mobile_data_stats$mean + (mobile_data_stats$sd * 3)) %>%
+  summarise(prop_within_3sd = n() / nrow(samsung_data))
+```
 
 
 
