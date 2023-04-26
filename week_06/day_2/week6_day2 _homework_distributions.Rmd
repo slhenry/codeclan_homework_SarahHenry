@@ -53,7 +53,7 @@ Step 2: plot the distribution of ratings for Samsung phones
 mobile_dist <- mobile_data %>% 
   filter(brand == "Samsung") %>% 
   ggplot(aes(x = rating))+
-  geom_histogram(col = "white", bins = 40)
+  geom_histogram(col = "white")
 
  mobile_dist
 ```
@@ -65,7 +65,7 @@ Step 2: calculate the probability density and overlay the fitted normal distribu
 mobile_data %>% 
   filter(brand == "Samsung") %>% 
   ggplot(aes(x = rating))+
-  geom_histogram(aes(y = after_stat(density)), col = "white", bins = 40)+
+  geom_histogram(aes(y = after_stat(density)), col = "white")+
   stat_function(
     fun = dnorm,
     args = list(
@@ -97,7 +97,7 @@ samsung_data %>%
   filter(z_score >= -0.685,
         z_score <= 0.685) %>% 
   summarise(rating_total = n(), 
-            proportion_total = (rating_total/720) * 100)
+            proportion_total = (rating_total/nrow(samsung_data)))
 ```
 
 ```{r}
@@ -116,13 +116,26 @@ samsung_data %>%
   summarise(rating_total = n(), 
             proportion_total = rating_total/792 * 100)
 ```
+
+
+```{r}
+samsung_data %>% 
+  filter(z_score >= -1,
+        z_score <= 1) %>% 
+  summarise(rating_total = n(), 
+            proportion_total = rating_total/nrow(samsung_data))
+```
+
+
+
+
 Calculate the proportion of rating within 2SD
 ```{r}
 samsung_data %>% 
   filter(z_score >= (-0.685 * 2),
         z_score <= (0.685 * 2)) %>% 
   summarise(rating_total = n(), 
-            proportion_total = rating_total/792 * 100)
+            proportion_total = rating_total/792)
 ```
 Calculate the proportion of rating within 3SD
 

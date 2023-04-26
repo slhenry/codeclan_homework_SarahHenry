@@ -1,0 +1,201 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(infer)
+library(janitor)
+library(fastGraph)
+```
+
+Task 1: load data and clean names
+```{r}
+ames <- read_csv("data/ames.csv") %>% 
+  clean_names()
+
+names(ames)
+head(ames)
+```
+
+Task 2: Investigate the distribution of lot_area. Is the distribution roughly normal? If not, what problems do you find?
+
+```{r}
+ames %>% 
+  ggplot()+
+  aes(x = lot_area)+
+  geom_histogram(bins = 300)+
+  xlab("Lot area")+
+  ylab("Count")
+```
+
+The data shows the distribution of lot sizes of sold properties. Most of the sold properties are between 0 and 50,000, with the mode ~10,000. We don't have units for this variable, likely to be meters?  There are several outliers at 100k, 200k and 300k for some huge properties, but the majority are between 0 - 25k. The data is not normally distributed and it is too bunched up to tell. The left size of the chart is not at zero, because sold house prices always have a size, and it looks like there is a shoulder on the left of the curve around 5k. 
+
+Task 3: Compute and visualise a bootstrap sampling distribution for the mean(lot_area) of the sold houses.
+
+```{r}
+bootstrap_200 <- ames %>% 
+   rep_sample_n(size = 200, reps = 5000, replace = TRUE) %>% 
+    summarise(mean_lot_area = mean(lot_area))
+
+bootstrap_200
+```
+
+```{r}
+mean(bootstrap_200$mean_lot_area)
+```
+```{r}
+bootstrap_chart <- bootstrap_200 %>% 
+  ggplot()+
+  aes(x = mean_lot_area)+
+  geom_histogram(bins = 30)
+
+bootstrap_chart 
+```
+THis looks like it is right skewed distribution, but the data goes to 0 on the left size of the distribution. The median is around 10k 
+
+
+Task 4:Use your bootstrap distribution to calculate a 95% CI for mean(lot_area), and visualise it on the distribution
+
+
+```{r}
+bootstrap_200 %>% 
+summarise(mean = mean(mean_lot_area),
+            lower_bound = quantile(mean_lot_area, prob = 0.025),
+            upper_bound = quantile(mean_lot_area, prob = 0.975))
+```
+```{r}
+infer_resample <- ames %>% 
+  specify(response = lot_area) %>% 
+  generate(reps = 5000,  type = "bootstrap") %>% 
+  calculate(stat = "mean") 
+
+infer_resample
+```
+
+```{r}
+infer_ci_95 <- infer_resample %>% 
+  get_confidence_interval(level = 0.95, type = "percentile")
+
+infer_ci_95
+```
+
+```{r}
+infer_resample %>% 
+  visualise(bins = 30)+
+  shade_confidence_interval(endpoints = infer_ci_95)
+```
+
+Task 5.You would like to know the mean(lot_area) of the sold houses with higher confidence. Calculate the 99%
+CI for this variable (you can re-use your bootstrap distribution from above). Is it narrower or broader than the 95% CI? Does that make sense?
+
+```{r}
+infer_ci_99 <- infer_resample %>% 
+  get_confidence_interval(level = 0.99, type = "percentile")
+
+infer_ci_99
+```
+```{r}
+infer_resample %>% 
+  visualise(bins = 30)+
+  shade_confidence_interval(endpoints = infer_ci_99)
+```
+
+The CI is a measure for the confidence that we will cover the distribution data i.e. 95% of the mean data will be covered by a 95%CI, and 99% covered by a 99% CI. This is represented by the graphs, which show a wider proportion of data is within the 99% CI. 
+
+
+Task 6: Calculate the point estimate of the mean(lot_area)
+
+```{r}
+mean(infer_resample$stat)
+```
+
+Extension, Task : Calculate a point estimate and 95% CI for the proportion of houses in the data built before 1920. Does the number of reps you use matter? [Investigate reps from 200 up to 50000, memory of your laptop permitting].
+
+Step 1: filter houses built before 1920, calculate the mean and visualise
+```{r}
+houses_pre_1920 <- ames %>% 
+  filter(year_built <= 1920) 
+
+houses_pre_1920 %>% 
+  summarise(mean_lot_area = mean(lot_area))
+            
+
+```
+
+```{r}
+houses_pre_1920 %>% 
+  ggplot()+
+  aes(x = lot_area)+
+  geom_histogram(bins = 30)
+```
+
+Step 2: calculate the 95% CI for the 233 houses in the sample
+```{r}
+houses_pre_1920 %>% 
+  summarise(mean = mean(lot_area),
+            lower_bound = quantile(lot_area, prob = 0.025),
+            upper_bound = quantile(lot_area, prob = 0.975))
+```
+Step 3: Calculate 95% CI with a variety of sampling reps and compare.
+first 200
+
+```{r}
+rep_sample_1920 <- houses_pre_1920 %>% 
+  rep_sample_n(size = 200, reps = 200) %>% 
+  summarise(mean_lot_area = mean(lot_area))
+
+rep_sample_1920 %>% 
+  summarise(mean = mean(mean_lot_area),
+            lower_bound = quantile(mean_lot_area, prob = 0.025),
+            upper_bound = quantile(mean_lot_area, prob = 0.975))
+```
+With 500 reps
+```{r}
+rep_sample_1920_500 <- houses_pre_1920 %>% 
+  rep_sample_n(size = 200, reps = 500) %>% 
+  summarise(mean_lot_area = mean(lot_area))
+
+rep_sample_1920_500 %>% 
+  summarise(mean = mean(mean_lot_area),
+            lower_bound = quantile(mean_lot_area, prob = 0.025),
+            upper_bound = quantile(mean_lot_area, prob = 0.975))
+```
+
+
+With 50000 reps
+
+```{r}
+rep_sample_1920_50000 <- houses_pre_1920 %>% 
+  rep_sample_n(size = 200, reps = 50000) %>% 
+  summarise(mean_lot_area = mean(lot_area))
+
+rep_sample_1920_50000 %>% 
+  summarise(mean = mean(mean_lot_area),
+            lower_bound = quantile(mean_lot_area, prob = 0.025),
+            upper_bound = quantile(mean_lot_area, prob = 0.975))
+```
+
+
+
+
+
+Mean is the same with 500 and 50000 reps, so not the CI interval is not substantially improved with a much greater number of reps. Similarly for the lower and higher bands. Whereas, between the unsampled data and 500 reps, there is a difference in the mean and the 95% interval, but less so from the 50000 reps sample. 
+From this, I would conclude that there is an optimal number of reps, and beyond this (such as 50000) has no noticeable difference to these calculations.  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
