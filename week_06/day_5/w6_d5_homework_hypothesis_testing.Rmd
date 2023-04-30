@@ -1,0 +1,389 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+data(msleep)
+library(infer)
+library(janitor)
+```
+
+# Part 1.1 Hypothesis testing practical
+
+## Question 1: Explore the dataset and familiarise yourself with it.
+
+```{r}
+head(msleep)
+```
+
+```{r}
+names(msleep)
+```
+
+```{r}
+glimpse(msleep)
+```
+## Question 2: Jabberwockies sleep for around 7 hours a night, on average. Perform an appropriate statistical test to determine whether the mean sleep_total in the sampled population of animal types differs from the typical value for jabberwockies.
+
+### Step 1: Generate hypotheses
+Compare the mean from our animal sample to 7 i.e. one sample mean
+
+H0: mean_sleep_total for animal sample = 7
+H1 mean_sleep_total for animal sample != 7
+significance level = 0.05
+
+Generate a bootstrap with replacement for the null distribution and p value to prove/disprove null hypothesis
+
+
+```{r}
+msleep %>% 
+  ggplot(aes(x = sleep_total))+
+  geom_boxplot()
+```
+
+Median is around 10, but a wide distribution of sleep length. Already looking like we will be disproving the null hypothesis, due to the position of the interquartile range (8-13ish)
+
+### Step 2:
+Calculate test statistic (ie mean sleep_total of the animal sample)
+
+
+```{r}
+observed_stat <- msleep %>% 
+  summarise(mean_sleep_total = mean(sleep_total))
+
+observed_stat
+```
+
+### Step 3: Generate null distribution
+
+```{r}
+sleep_null_distribution <- msleep %>%
+  specify(response = sleep_total) %>%
+  hypothesize(null = "point", mu = 7) %>%
+  generate(reps = 10000, type = "bootstrap") %>%
+  calculate(stat = "mean")
+```
+
+### Step 4: Visualise null distribution with calculated statistic
+
+```{r}
+sleep_null_distribution %>%
+  visualise(bins = 30)+
+  shade_p_value(obs_stat = observed_stat$mean_sleep_total, direction = "both")
+```
+
+
+### Step 5: Get p-value and interpret
+
+```{r}
+sleep_null_distribution %>%
+  get_p_value(obs_stat = observed_stat$mean_sleep_total, direction = "both")
+```
+
+The p-value is 0, and much lower than our signficance levels and therefore we can confidently reject the null hypothesis. This means that the average sleep total for the animals in this population is not 7 and therefore different from the average total sleep of jabberwockies. 
+
+## Question 3: Perform an appropriate statistical test to determine whether omnivores sleep for significantly longer than herbivores, on average.
+
+### Step 1: generate hypothesis
+
+compare two means ie two sample mean of independent groups
+H0: mean(ominvores) - mean(herbivores) = 0
+H1 : mean(omivores)- mean(herbivores) = > 0
+Significance level = 0.05 (i.e. happy to be wrong 1 in 20 times)
+
+generate a null distrubution with random shuffle
+
+### Step 2: Data exploration and wrangling
+
+```{r}
+omni_herbi_sleep <- msleep %>% 
+  select(vore, sleep_total) %>% 
+  filter(vore %in% c("omni", "herbi")) 
+```
+
+
+```{r}
+omni_herbi_sleep %>% 
+  count(vore)
+```
+
+```{r}
+omni_herbi_sleep %>% 
+  ggplot(aes(x = sleep_total, y = vore))+
+  geom_boxplot()
+```
+
+From the boxplot we can see that the median values for both groups are quite similar, but omnivores is lower than for herbivores. However, we will be comparing means and the interquartile ranges for both groups is very different. Omnivores have a narrow IQR (~9 - 12) but for herbivores is much wider (~4 - 14). 
+
+
+### Step 2: Calculate test statistic
+
+```{r}
+obs_stat_omni_herb <- omni_herbi_sleep %>% 
+  specify(response =  sleep_total, explanatory = vore) %>% 
+  calculate(stat = "diff in means", order = c("omni", "herbi"))
+
+obs_stat_omni_herb
+
+```
+
+### Step 3: Generate null distribution
+
+```{r}
+null_distribution_omni_herbi <- omni_herbi_sleep %>% 
+  specify(response = sleep_total, explanatory = vore) %>% 
+  hypothesise(null = "independence") %>% 
+  generate(reps = 1000, type = "permute") %>% 
+  calculate(stat = "diff in means", order = c("omni", "herbi"))
+```
+
+
+### Step 4: Visualise 
+
+```{r}
+null_distribution_omni_herbi %>% 
+  visualise(bins = 25)+
+  shade_p_value(obs_stat = obs_stat_omni_herb$stat,
+                direction = "greater")
+```
+
+### Step 5: Get p- value and interpret
+
+```{r}
+null_distribution_omni_herbi %>% 
+  get_p_value(obs_stat = obs_stat_omni_herb$stat,
+                direction = "greater")
+```
+
+The p-value is 0.119 and is higher than the signficance threshold (0.05) and therefore we have not disproved the null hypothesis. This means that omnivores do not sleep significantly longer than herbivores. 
+
+
+
+## Question 4: Question 4. Perform an appropriate statistical test to determine whether the proportion of domesticated animal types in the population of animal types is greater than 5%. Hint: Think about creating an is_domesticated variable for the analysis
+
+### Step 1: generate hypotheses
+
+One-sample proportion test, samples are independent
+
+H0: proportion(domesticated_animals) = 5
+H1: proportion(domesticated_animals) > 5
+Significance level = 0.05
+
+null distrubution will be draw, to test how often the domesticated animal ball is pulled from the sample bag. 
+
+### Step 2: Data exploration and wrangling
+
+```{r}
+msleep %>% 
+  distinct(name)
+```
+
+Label animals as domestic if they live alongside humans as companions or farm animals. Remove humans since domestic refers to animal's ability to live alongside humans. 
+
+```{r}
+domestic <- msleep %>% 
+  mutate(is_domesticated = if_else(name %in% c("Dog", "Cow", "Goat", "Horse", "Donkey", "Domestic cat", "Golden hamster", "Sheep", "Laboratory rat", "Pig"), "domesticated", "not_domesticated"), .after = name) %>% 
+  filter(name != "Human") %>% 
+  select(name, is_domesticated)
+
+```
+
+### Step 3: Calculate observed statistic (ie proportion domesticated animals)
+
+```{r}
+obs_stat <- domestic %>% 
+  filter(is_domesticated == "domesticated") %>% 
+  summarise(prop_dom = n() / nrow(domestic))
+
+obs_stat 
+```
+
+### Step 4: Generate null distribution and visualise
+
+```{r}
+null_distribution_domestic <- domestic %>% 
+  specify(response = is_domesticated, success = "domesticated") %>% 
+  hypothesise(null = "point", p = 0.05) %>% 
+  generate(reps = 2000, type = "draw") %>% 
+  calculate(stat = "prop")
+```
+
+```{r}
+null_distribution_domestic %>% 
+  visualise(bins = 25)+
+  shade_p_value(obs_stat = obs_stat$prop_dom,
+                direction = "greater")
+```
+
+
+### Step 5: Get p-value and interpret
+
+```{r}
+null_distribution_domestic %>% 
+  get_p_value(obs_stat = obs_stat$prop_dom,
+                direction = "greater")
+```
+
+The p value is 0.0085, which is lower than our defined significance level (0.05) and therefore we can reject the null hypothesis in favour of the H1. This means we can be confident that the proportion of domesticated animals in this population of animal types is higher than 5%
+
+
+# Part 1.2
+
+## Question 1
+
+Test: One sample test for proportion
+H0: The proportion of people in town who know about the coffee shop is 40% 
+
+
+$$H_0: \pi_{\textrm{know_about_coffeeshop}} = 0.4$$
+H1: THe proportion of people who know about the coffee shop is greater than 40%
+
+$$H_a: \pi_{\textrm{know_about_coffeeshop}} > 0.4$$
+
+Method to generate null distribution: As this would use a one sample test for proportion, I would use the draw method to create the null distribution. THis would generate a value for as many rows as are in the data while ensuring 40% of the values would be "know about coffeeshop"
+
+## Question 2: 
+
+Test: use a two-sample proportion test, for independent samples . Test will be to compare click through rate (CTR) from website users who have A (banner in right of page) and B (banner in top of page)
+H0: Users from group B will have the same CTR than users from group A
+
+$$H_0: \pi_{\textrm{groupB}}-\pi_{\textrm{groupA}} = 0$$
+H1: Users from group B will have a higher CTR than users from group A
+
+$$H_a: \pi_{\textrm{groupB}}-\pi_{\textrm{groupA}} > 0$$
+
+Method for null: generate the null distribution by randomly shuffling labels of observations to randomly assign into group 1 and 2, then calculate the difference in sample means for both groups. 
+## Question 3: 
+
+Test: one sample mean. The aim is to test the manufacturing process for a car company to calculate the variation of component part width from 145mm
+H0: mean width of the components are equal to 145mm
+
+$$H_0: \mu_{\textrm{width}} = 145$$
+
+H1: the mean width of the components is not 145mm and could be either higher or lower.
+
+$$H_a: \mu_{\textrm{width}} \ne 145$$
+Method for null: create the null distribution using bootstrap with replacement, calculating the mean (e.g.5000). 
+
+
+# Part 1.3
+
+## Question 1: Coffeeshop. 
+
+A significance level of 0.05 and a calculated p-value of 0.07. As the p-value is higher than the significance level we would not be able to reject the null hypothesis. Based on this sample, we would not have enough evidence to say that more than 40% of the population of the town knows about the coffee shop. 
+
+## Question 2: Website company problem. 
+
+The significance level is 0.01, p-value is 0.006. 
+As the p-value is lower than the significance level, we would reject the null hypothesis in favour of the alternative hypothesis. This would mean that Group B, the users with the banner at the top of the website, did return a higher rate of clicks than the group with the banner on the right. From this evidence, the advice for the company would be to place their banner at the top as it results in better engagement from users.
+
+## Question 3: Manufacturing company problem. 
+
+Significance level is 0.05, p-value: 0.55. 
+The p-value is much higher than the significance level, so we cannot reject the null hypothesis. Based on this result, we would feel confident in telling the car company that there is not significant drift in their manufacturing process. 
+
+
+
+# Extension
+
+```{r}
+transactions <- read_csv("data/online_retail_subset.csv") %>% 
+  clean_names()
+```
+
+## Question 1: calculate the support for item A (heart of wicker small, 22469)
+
+sup(A) = P(A) = number of transactions involving A / total number of transactions
+
+
+```{r}
+transactions_count <- transactions %>% 
+  summarise(transactions_num = n_distinct(invoice_no)) %>% 
+  pull()
+```
+
+
+```{r}
+prob_a <- transactions %>% 
+  filter(stock_code == 22469) %>% 
+  summarise(prob_a = n_distinct(invoice_no)/transactions_count)
+
+
+prob_a 
+```
+## Question 2: Calculate the support and confidence for rule (A→B)
+
+
+sup(A->B) = prob(A_B) = number of transactions involving A and B / total number of transactions
+
+conf(A->B) = P(A and B purchased together) / P(A being purchased)
+
+Need to calculate P(A and B purchased together) ie number of transactions involving A and B
+
+```{r}
+# step 1: data wrangling, create wide table with one line for each transaction and new column for item a and item b 
+sup_a_b <- transactions %>% 
+  filter(stock_code %in% c(22469, 21110)) %>% 
+  select(invoice_no, stock_code) %>% 
+  pivot_wider(names_from = stock_code,
+              values_from = stock_code)
+
+```
+
+```{r}
+# Step 2: calculate p(A_B) by counting the number of transactions containing both items A and B, and divide by total transactions calculated earlier (1408)
+prob_a_b <- sup_a_b %>% 
+  drop_na() %>% 
+  summarise(pa_b = n() / transactions_count)
+
+prob_a_b
+```
+
+```{r}
+# step 3: calculate conf(A_B) = P(A and B purchased together) / P(A being purchased)
+
+conf_a_b <- transactions_ab_na / prob_a
+
+conf_a_b
+```
+
+Answers to Q2: 
+p(A_B) = 0.003556188
+conf(A_B) = 0.0462963
+
+## Question 3: Calculate the lift for (A→B)
+
+Lift is when increase in sales of A when sold with B
+
+Lift(A_B) = prob(A_B) / p(A) x p(B)
+
+```{r}
+# step 1: calculate p(B)
+prob_b <- transactions %>% 
+  filter(stock_code == 21110) %>% 
+  summarise(prob_b = n_distinct(invoice_no)/transactions_count)
+
+prob_b
+
+```
+
+```{r}
+# Step 2: calculate lift(A_B) = prob_a_b / prob_a * prob_b
+
+prob_a_times_b <- prob_a * prob_b
+lift_a_b <- prob_a_b / prob_a_times_b
+
+lift_a_b 
+```
+The lift(A_B) = 4.649471
+
+If lift(A_B) = 1, there would be no correlation between items A and B being bought together, these would be classed as independent events. However, we have a lift(A_B) = 4.65, which is higher than 1 and would suggest that there is a higher chance of A and B being bought together. 
+
+The confidence of A and B being bought togehter is also lower than the lift (conf(A_B) = 0.46) suggesting we can be reasonably confident in this conclusion that items A and B are more likely to be bought together, 
+
+
+
+
+
