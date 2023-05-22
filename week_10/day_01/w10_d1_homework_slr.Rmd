@@ -1,0 +1,147 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(broom)
+library(modelr)
+library(ggfortify)
+```
+
+```{r}
+proj_manage <- read_csv("data/project_management.csv")
+```
+
+## Task 1: Plot the data, taking estimated_length as the independent variable and actual_length as the dependent variable.
+
+x = explanatory/predictor/independent (estimated_length)
+y = outcome/dependent/response (actual_length)
+
+```{r}
+proj_manage %>% 
+  ggplot(aes(x = estimated_length, y = actual_length))+
+  geom_point()+
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+
+## Task 2: Calculate the correlation coefficient of estimated_length and actual_length and interpret the value you obtain.
+
+```{r}
+proj_manage %>% 
+  summarise(correlation = cor(estimated_length, actual_length))
+```
+
+This indicates there is a strong positive correlation between estimated_length of project and actual_length of project. ie when the estimated length increases, it is likely that the actual length of project also increases. 
+
+
+Task 3: Perform a simple linear regression using actual_length as the dependent variable, and estimated_length as the independent variable. Save the model object to a variable.
+
+```{r}
+model <- lm(
+# formula = y varies with x
+  formula = actual_length ~ estimated_length,
+  data = proj_manage
+)
+model
+```
+
+
+Task 4: Interpret the regression coefficient of estimated_length (i.e. slope, gradient) you obtain from the model. How do you interpret the r2 value reported by the model?
+
+The equation for simple linear regression is 
+$$
+\hat{y} = b_0 + b_1\times x
+$$
+and in this specific example it is 
+
+Our specific equation is: 
+$$
+\widehat{actual length} = estimated_length} \times estimated_length + intercept
+$$
+ie actual_length = gradient x estimated_length + intercept
+
+actual_length = 1.223 * x + 1.416
+
+Therefore, if a project is estimated to run for 16 days, it will actually take 20.9 days
+
+actual_lenth = 1.223 * 16 + 1.416
+```{r}
+1.223 * 16 + 1.416
+```
+THis corresponds to the plot too, if a geom_smooth line is fitted. 
+
+The R2 is calculated by r * r and is an indication of how well the regression model explains the observed data
+
+```{r}
+proj_manage %>% 
+  summarise(r2 = cor(estimated_length, actual_length) * cor(estimated_length, actual_length))
+```
+An r2 indicates that 64.7% of the variability observed in the data is explained by the regression model. 
+
+Task 5: Is the relationship statistically significant? Remember, to assess this you need to check the p-value of the regression coefficient (or slope/gradient). But you should first check the regression diagnostic plots to see if the p-value will be reliable (don’t worry about any outlier points you see in the diagnostic plots, we’ll return to them in the extension).
+
+```{r}
+summary(model)
+```
+The R is a test of the null hypothesis and alternative hypothesis
+Ho: the coefficient is not statistically significant (makes no difference to the model)
+H1: coefficient makes a statistically significant difference to the model
+
+```{r}
+autoplot(model)
+```
+The regression diagnostic plots show
+1. Residuals vs fitted. There is no clear patterna and the blue line is close to zero for the most part. At the higher end, the line dips from zero, but there is a good spread of points with no defining pattern or trend. This would indicate that there is no other pattern in the data that has not been captured with the linear regression model. 
+
+2. Normal Q-Q plot -is a test for normalcy and the majority of the points lie along the straight line which. There are two outliers at the extreme ends that are deviating from normalcy, but overall most of the plots are on the line. 
+
+3. The scale location plot shows a scattering of plots and a slight up turned curve of the line. However, the points aren't falling into any pattern or funnel shape. 
+
+Overall, these plots indicate a high degree of confidence in the p-values 
+
+The p-value of the regression model is 1.91e-12, which is lower than the standard default of 0.05. This means we can refect the Ho in favour of the Ha. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
