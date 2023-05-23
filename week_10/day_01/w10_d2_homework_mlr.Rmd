@@ -1,0 +1,155 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Homework - features and elements of multiple regression
+
+## Task 1:Load the housing_prices.csv data set and undertake an initial exploration of the data. You will find details on the data set on the relevant Kaggle page
+
+```{r}
+library(tidyverse)
+library(GGally)
+library(fastDummies)
+library(ggfortify)
+```
+
+```{r}
+house_prices <- read_csv("data/housing_prices.csv")
+```
+```{r}
+glimpse(house_prices)
+```
+```{r}
+summary(house_prices)
+```
+There are 200 NAs in total_bedrooms, which could contribute to deciding which variable to drop later. 
+
+
+
+## Task 2:We expect the total_rooms of houses to be strongly correlated with total_bedrooms. Use ggpairs() to investigate correlations between these two variables.
+
+Step 1: First need to do something with the NAs in total_bedrooms, can't decided whether to impute with mean, or to drop_nas. There is quite a large range of total_bedrooms, but I don't want to lose data so decide to inpute with mean. 
+
+```{r}
+house_prices_imputed <- house_prices %>% 
+  mutate(total_bedrooms = coalesce(total_bedrooms, mean(total_bedrooms, na.rm = TRUE)))
+
+```
+
+Step 2: Calculate correlation between total_rooms and total_bedrooms. 
+
+These variables are strongly correlated
+```{r}
+house_prices_imputed %>% 
+  summarise(correlation = cor(total_rooms, total_bedrooms))
+```
+
+## Task 3: So, we do find significant correlations. Let’s drop total_bedrooms from the dataset, and use only total_rooms going forward
+
+```{r}
+house_prices_trim <- house_prices_imputed %>% 
+  select(-total_bedrooms)
+```
+
+## Task 4: we are interested in developing a regression model for the median_house_value of a house in terms of the possible predictor variables in the dataset.
+  - Use ggpairs() to investigate correlations between median_house_value and the predictors (this may take a while to run, don’t worry, make coffee or something).
+  
+```{r message=FALSE}
+ggpairs(house_prices_trim, progress = FALSE) 
+```
+
+
+- Perform further ggplot visualisations of any significant correlations you find.
+
+```{r}
+house_prices_trim %>% 
+  ggplot(aes(x = median_income, y = median_house_value))+
+  geom_point()
+```
+
+
+
+```{r}
+house_prices_trim %>% 
+  ggplot(aes(y = ocean_proximity, x = median_house_value))+
+  geom_boxplot()
+```
+
+## Task 5: Shortly we may try a regression model to fit the categorical predictor ocean_proximity. Investigate the level of ocean_proximity predictors. How many dummy variables do you expect to get from it?
+
+```{r}
+house_prices_trim %>% 
+  distinct(ocean_proximity)
+```
+There are five values in the ocean proximity column, so we will have 5 columns for each variable, minus one (which we will have to drop to be the reference variable)
+
+```{r}
+house_prices_dummy <- house_prices_trim %>% 
+  fastDummies::dummy_cols(select_columns = "ocean_proximity",
+                          remove_first_dummy = TRUE,# don't need this column for our model
+                          remove_selected_columns = TRUE)
+
+house_prices_dummy
+```
+
+## Task 6: Start with simple linear regression. Regress median_house_value on median_income and check the regression diagnostics.
+
+x = explanatory/predictor/independent (median_income)
+y = outcome/dependent/response (median_house_value)
+
+```{r}
+# formula = y varies with x
+model <- lm(median_house_value ~ median_income, 
+            data = house_prices_trim)
+
+autoplot(model)
+```
+plot 1: The residuals appear to be randomly distributed, but within a defined shape. However, the blue line is very close to zero, suggesting that overall there is no pattern to the distribution
+plot 2: the residuals fall mostly along a straight line, suggesting that there is normal distribution of residuals
+plot 3: the residuals are randomly distributed, but there is some evidence of heteroscedacity, as the data show a defined shape which is funneled towards the right. However, the blue line is relatively straight. 
+Plot 4: some outlirs exhibiting more leverage on the residuals. 
+
+```{r}
+summary(model)
+```
+
+
+## Task 7: Add another predictor of your choice. Check your assumptions, diagnostics, and interpret the model.
+
+Add in an additional predictor of households, since that seemed to show a high correlation to house value (this makes sense, the more people in the house, the larger it is likely to be. )
+```{r}
+model2 <- lm(median_house_value ~ median_income + households, 
+            data = house_prices_trim)
+
+autoplot(model2)
+```
+plot 1: checks the assumption that the residuals are independent. In this case, The residuals appear to be randomly scattered, and the blue line is very close to zero, suggesting that overall the residuals are randomly distributed
+plot 2: tests that the residuals are randomly distributed around zero, and if they are they align (as these do) along a straight line. 
+plot 3: tests the assumption that residuals have constant variation. If the points are randomly distributed, this would indicate that the model fits the data well. IF there is a funnelling effect it would suggest heteroscedacitiy, and that the model doesn't match the data. In this case there is a shape of the data but the values are randomly scattered within the shape, and furthermore, the blue line is relatively straight. 
+
+
+
+```{r}
+summary(model2)
+```
+This model would be interpreted as 
+
+house_value = b0 + b1 * median_income + b2 * households
+house_value = 37786 + 39799 * median_income + 16.68 * households
+
+The p-value for these 3 coefficients is very low, which is significant and in combination with our diagnostics plot, give us confidence in our assumptions and the model. 
+
+
+Also, I ran another adding the housing_median_age as a predictor too. 
+
+```{r}
+model3 <- lm(median_house_value ~ median_income + housing_median_age, 
+            data = house_prices_trim)
+
+autoplot(model3)
+```
+```{r}
+summary(model3)
+```
+
