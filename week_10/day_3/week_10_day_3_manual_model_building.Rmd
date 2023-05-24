@@ -1,0 +1,348 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Manual model development - homework
+Week 10, day3
+
+```{r}
+library(tidyverse)
+library(modelr)
+library(ggfortify)
+library(GGally)
+library(fastDummies)
+```
+
+
+```{r}
+kc_house <- read_csv("data/kc_house_data.csv")
+```
+
+## Question 1: Tidy up the data ready for regression
+
+
+```{r}
+kc_tidy <- kc_house %>% 
+  select(-c(date, id, sqft_living15, sqft_lot15, zipcode))
+```
+
+```{r}
+summary(kc_tidy)
+```
+```{r}
+glimpse(kc_tidy)
+```
+```{r}
+kc_tidy <- kc_tidy %>% 
+  mutate(waterfront = as.logical(waterfront))
+
+head(kc_tidy)
+```
+
+```{r}
+kc_tidy <- kc_tidy %>% 
+  mutate(renovated = if_else(yr_renovated == 0, "not renovated", "renovated"))
+
+head(kc_tidy)
+```
+
+```{r}
+kc_tidy <- kc_tidy %>% 
+  mutate(renovated = recode(renovated, "renovated" = "TRUE",
+                            "not renovated" = "FALSE")) %>% 
+  mutate(renovated = as.logical(renovated))
+
+head(kc_tidy)
+```
+
+
+```{r}
+kc_tidy <- kc_tidy %>% 
+  mutate(grade = case_when(grade <= 3 ~ "LOW",
+                         grade <= 10 ~ "MEDIUM",
+                         grade <= 13 ~ "HIGH"))
+head(kc_tidy)
+```
+
+```{r}
+kc_tidy <- kc_tidy %>% 
+  mutate(bed_plus_bath = bedrooms + bathrooms, .after = bathrooms)
+
+head(kc_tidy)
+```
+
+```{r}
+kc_dummy_condition <- kc_tidy %>% 
+  fastDummies::dummy_cols(select_columns = "condition", 
+                          remove_first_dummy = TRUE,
+                          remove_selected_columns = TRUE)
+
+kc_dummy_condition
+```
+
+```{r}
+kc_dummy_view <- kc_dummy_condition %>% 
+  fastDummies::dummy_cols(select_columns = "view", 
+                          remove_first_dummy = TRUE,
+                          remove_selected_columns = TRUE)
+
+kc_dummy_view
+```
+
+
+
+```{r}
+kc_tidy %>% 
+   ggplot(aes(y = lat, x = long, colour = waterfront))+
+geom_point()
+```
+
+## 2: Check for aliased variables using the alias() function (this takes in a formula object and a data set). [Hint - formula price ~ . says ‘price varying with all predictors’, this is a suitable input to alias()]. Remove variables that lead to an alias. Check the ‘Elements of multiple regression’ lesson for a dropdown containing further information on finding aliased variables in a dataset.
+
+```{r}
+alias(price ~ ., data = kc_tidy)
+```
+```{r}
+kc_trim <- kc_tidy %>% 
+  select(-c(bed_plus_bath, sqft_above, yr_renovated))
+```
+
+```{r}
+alias(price ~ ., data = kc_trim)
+```
+## Task 4: Systematically build a regression model containing up to four main effects (remember, a main effect is just a single predictor with coefficient), testing the regression diagnostics as you go * splitting datasets into numeric and non-numeric columns might help ggpairs() run in manageable time, although you will need to add either a price or resid column to the non-numeric dataframe in order to see its correlations with the non-numeric predictors.
+
+
+
+```{r}
+houses_tidy_numeric <- kc_trim %>%
+  select_if(is.numeric)
+```
+
+
+```{r message=FALSE}
+houses_tidy_numeric %>% 
+  ggpairs(upper = list(continuous = wrap("cor", size = 3)))
+```
+
+
+```{r}
+houses_tidy_nonnumeric <- kc_trim %>%
+  select_if(function(x) !is.numeric(x))
+
+houses_tidy_nonnumeric$price <- kc_trim$price
+
+```
+
+```{r message=FALSE}
+houses_tidy_nonnumeric %>% 
+  ggpairs(aes(colour = grade, alpha = 0.5))
+
+```
+
+
+Build a simple linear model for price ~ bathrooms as this has high correlation (0.525)
+
+```{r}
+mod1a <- lm(price ~ bathrooms,
+            data = kc_trim)
+
+autoplot(mod1a)
+```
+
+```{r}
+mod1b <- lm(price ~ sqft_living,
+            data = kc_trim)
+
+autoplot(mod1b)
+```
+```{r}
+summary(mod1b)
+```
+
+```{r}
+mod1c <- lm(price ~ waterfront,
+            data = kc_trim)
+
+autoplot(mod1c)
+```
+```{r}
+summary(mod1c)
+```
+
+
+
+Although sqft_living had a higher correlation, the diagnostic plots looked quite bad, and clearly the model doesn't fit the data well. So, I went for the second best correlation, bathrooms, and these plots look ok. The QQ plot looks quite bad at one end of the line, but the majority fit the line well. 
+
+```{r}
+summary(mod1a)
+```
+The R^2 is 0.275 (ie quite low) but it is statistically significant. 
+
+### 2nd predictor
+
+Add the residuals to the data and remove the price, bathrooms from the dataset
+
+```{r}
+kc_resid <- kc_trim %>% 
+  add_residuals(model = mod1a) %>% 
+  select(-c(price, bathrooms))
+```
+
+```{r message=FALSE}
+kc_resid %>% 
+  ggpairs(upper = list(continuous = wrap("cor", size = 2)))
+```
+
+The highest correlation is sqft_living (0.577) and also waterfront, so will add this into the model and compare
+```{r}
+mod2a <- lm(price ~ bathrooms + sqft_living,
+            data = kc_trim)
+
+autoplot(mod2a)
+```
+
+```{r}
+summary(mod2a)
+```
+
+
+```{r}
+mod2b <- lm(price ~ bathrooms + waterfront,
+            data = kc_trim)
+
+autoplot(mod2b)
+```
+
+
+
+
+
+```{r}
+summary(mod2b)
+```
+The dignostic plots looks slightly better for sqft_living than previously, but still not very nice. However, the R^2 and p-values are highter than waterfront, so I decided to choose this as the second predictor.
+
+
+### third predictor
+
+```{r}
+kc_resid2 <- kc_trim %>% 
+  add_residuals(model = mod2a) %>% 
+  select(-c(price, bathrooms, sqft_living))
+```
+
+```{r message=FALSE}
+kc_resid2 %>% 
+  ggpairs(upper = list(continuous = wrap("cor", size = 2)))
+```
+The variable which previously had a high correlation was the waterfront, view and grade so I will try these in the model and compare
+
+```{r}
+mod3a <- lm(price ~ bathrooms + sqft_living + waterfront,
+            data = kc_trim)
+
+autoplot(mod3a)
+```
+
+```{r}
+summary(mod3a)
+```
+
+```{r}
+mod3b <- lm(price ~ bathrooms + sqft_living + view,
+            data = kc_trim)
+
+autoplot(mod3b)
+```
+```{r}
+summary(mod3b)
+```
+
+
+```{r}
+mod3c <- lm(price ~ bathrooms + sqft_living + grade,
+            data = kc_trim)
+
+autoplot(mod3c)
+```
+
+
+```{r}
+summary(mod3c)
+```
+
+
+R^2 highest for view
+p-value was significant for all
+
+Therefore, go with view for the third predictor because the r2 was slightly higher
+
+### fourth predictor
+
+```{r}
+kc_resid3 <- kc_trim %>% 
+  add_residuals(model = mod3b) %>% 
+  select(-c(price, bathrooms, sqft_living, -view))
+```
+
+
+```{r message=FALSE}
+kc_resid3 %>% 
+  ggpairs(upper = list(continuous = wrap("cor", size = 2)))
+```
+Latitude shows high correlation to residuals, let's add that in next as an option and compare to grade and condition
+
+```{r}
+mod4a <- lm(price ~ bathrooms + sqft_living + view + lat,
+            data = kc_trim)
+
+autoplot(mod4a)
+```
+```{r}
+summary(mod4a)
+```
+
+```{r}
+mod4b <- lm(price ~ bathrooms + sqft_living + view + grade,
+            data = kc_trim)
+
+autoplot(mod4b)
+```
+```{r}
+summary(mod4b)
+```
+
+
+```{r}
+mod4c <- lm(price ~ bathrooms + sqft_living + view + condition,
+            data = kc_trim)
+
+autoplot(mod4c)
+```
+
+```{r}
+summary(mod4c)
+```
+
+Latitude has the highest R^2 at 0.61, and they are all statistically significant. 
+
+I am going to call it a night, not sure if this is correct. 
+
+The equation for this model so far is
+
+price = -3.441e+07 + (5.916e+03 * bathrooms) + (2.464e+02 * sqft_living) + (1.044e+05 * view) + ( 7.233e+05 * lat) 
+
+
+
+
+
+
+
+
+
+
+
+
+

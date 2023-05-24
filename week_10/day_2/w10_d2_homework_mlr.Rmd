@@ -192,3 +192,214 @@ housing_log <- housing_prices_eng %>%
 housing_log
 ```
 
+```{r}
+housing_log%>% 
+  ggplot(aes(x = log_median_income))+
+  geom_histogram()
+```
+
+Much more normal
+
+We have a dataste with a richer feature set. 
+Now let's start looking for relationships between variables, epsecially between our response/ outcome variable and potential predictors
+
+income vs house value
+
+```{r}
+housing_log %>% 
+  ggplot()+
+  aes(x = median_income, y = median_house_value)+
+  geom_point()
+
+```
+
+median_house_va
+
+```{r}
+housing_log %>% 
+  ggplot(aes(x = ocean_proximity, y = median_house_value))+
+  geom_boxplot()
+```
+```{r}
+housing_log %>% 
+  ggplot(aes(y = latitude, x = longitude, colour = ocean_proximity))+
+geom_point()
+```
+Bit more feature engineering, let's group these levels so that anything that is near water is named accordingly:
+
+```{r}
+housing_ocean <- housing_log %>% 
+  mutate(ocean_prox = if_else(
+    ocean_proximity %in% c("<1H OCEAN", "NEAR BAY", "NEAR OCEAN"), "NEAR WATER",
+    ocean_proximity
+  ))
+
+housing_ocean
+```
+
+```{r}
+housing_ocean %>% 
+  ggplot(aes(y = latitude, x = longitude, colour = ocean_prox))+
+geom_point()
+```
+Then we can include this categorical variable in a ggpairs plot, colouring by level
+
+```{r message=FALSE}
+housing_ocean %>% 
+  select(log_median_house_value, housing_median_age, log_median_income, ocean_prox) %>% 
+  ggpairs(aes(colour = ocean_prox, # use this to colour groups
+              alpha = 0.5)) # groups semi transparent
+```
+Trying to build a model to predict medican value, can see that housig age is not a good candidate as coor = 0.044. However, log_median_income has a good correlation. Also, the box plot with grouped ocean_prox shows good correlation too. 
+
+Looking for any predictors which might be correlated to each other. 
+
+Because we put the response/outcome variable first in select() the first column and row are the ones we are mainly interested. Data is grouped by ocean prozitmity -= can see that income and ocean prox eem very related to house value. 
+
+ggpairs plots might give you more ideas for variable engineering!
+e.g. this might be what inspied me to group the ocean prox levels. 
+
+Will try the high correlation coeffiecient variable first (income), then will see about adding other predictors (e.g. ocean proximity) 
+
+Now let's try the other variables 
+
+```{r}
+housing_ocean %>% 
+  select(log_median_house_value, log_total_rooms, log_population, log_households, log_rooms_per_house, log_people_per_house, log_rooms_per_person) %>% 
+  ggpairs()
+```
+
+House value is first colomn and first row. 
+
+Let's look at first row, none are showing high correlation, although all statistically significant. Therefore, none of these things seems to be particularly strong predictor of house value. 
+Not showing many potential predictors. We are seeing highly correlated variables (such as households, populations etc) to each other between the variables, but none to the house_values. 
+maybe log_rooms_per_person ( r = 0.256) and log_people_per_household(-0.210)
+ 
+Potential predictors:
+income
+ocean_prox
+maybe rooms per person
+maybe people per household
+
+
+Let's start fitting the model!
+
+  see which predictors work well
+  compare model performance
+  compare model diagnostics
+  add terms iteratively
+
+End goal: explain/predict variation in house prices at the district level (in California)
+
+We want a model that:
+  we understand
+  we can use to help inform decision making
+  explains variation well ("high" r2)
+  doesn't break assumption of linear regression
+  
+Lets start by finding the best wsingle predictor model
+
+```{r}
+mod1a <- lm(log_median_house_value ~ log_median_income,
+            data = housing_ocean)
+
+autoplot(mod1a)
+
+# without log transofmration
+mod1a_nolog <- lm(median_house_value ~ median_income,
+            data = housing_ocean)
+
+autoplot(mod1a_nolog)
+
+```
+
+  
+  Diagnostics of transofrmed- data model aren't the best in the world - but better than the un-transofmred model. Let's proceed 
+
+```{r}
+summary(mod1a)
+```
+
+Median income (logged) is a significant predictor of median house value (logged)
+
+How to interpret?? log can make the interpretation a little more difficult. 
+  log(median_value) ~ 11.09 + 0.78 * log(median_income)
+  "for every unit increase in log(median_income) there is a 0.78 unit increase in log(median_value)
+
+Let's look at another candidate: ocean proximity
+  
+```{r}
+mod1b <- lm(log_median_house_value ~ ocean_prox,
+            data = housing_ocean)
+
+autoplot(mod1b)
+```
+For grouped data, we want to see that each group is normally distributed (within that line) the QQ looks good though. 
+
+```{r}
+summary(mod1b)
+```
+
+  Reference class: the missing level (INLAND) has been mergend into the intercept ie.e everyone starts at 11.6, and can produc e an estimate for eac hof hte levels provided. 
+  
+log(median_house_value) = 11.604 * (1.23 * ISLAND) + (0.64 * NEAR WATER)
+
+e.g. island neighbourhoood
+                = 11.6 + (1.2 * 1) + (0.6 * 0)
+                = 11.6 + 1.2
+                =12.8
+
+mod1a (income as predictor) has a higher r2 than mod1b (oceanprox as predictor) - but both do have significant p-values for predictors. 
+
+Going with mod 1a and **that** is one full round of trying to fit a model. 
+
+Here is where we come across a new idea:
+
+  using our model error ("residuals") to help decide what variables to add next. 
+  
+```{r}
+library(modelr)
+
+housing_ocean %>% 
+  add_residuals(model = mod1a) %>% 
+  select(log_median_house_value, ocean_prox, log_rooms_per_person, log_people_per_house, resid) %>% 
+  ggpairs() # resid is how far we are off
+
+```
+So ocean proximity seemed to be a very good candidate for explaining some of our model residual. Let's use it as our 2nd predictor in a multiple linear regression model. 
+
+The process:
+  try out different candidates for our first predictor
+    chose the one with significant p's and highest R^2
+  Then added residuals to our dataset, compared these to other protential predictors
+    to see which might explain my remaining variance
+  Best candidate (i.e. low p-value and high R^2) will be our second predictor
+  Then add residuals to the datasets, c ompare these to the remainign predictors
+  And so on, iteratively adding predictors to our model. 
+
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
