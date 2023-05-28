@@ -1,0 +1,41 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Homework quiz
+
+### I want to predict how well 6 year-olds are going to do in their final school exams. Using the following variables am I likely under-fitting, fitting well or over-fitting? Postcode, gender, reading level, score in maths test, date of birth, family income.
+
+There are 6 variables in this model, and the idea for a model is to create a simple model which explains the data. Without seeing the data it is difficult to predict if this model would be under, over or well fitting, but the simpler the model the better. With each predictor, the more likely that the model will be overfit. 
+
+
+### If I have two models, one with an AIC score of 34,902 and the other with an AIC score of 33,559 which model should I use?
+
+AIC is a single measure of the 'goodness of fit' with a lower number being indicating a better fit. In this case, the model with the AIC = 33,559 would be the better model to use.  
+
+## I have two models, the first with: r-squared: 0.44, adjusted r-squared: 0.43. The second with: r-squared: 0.47, adjusted r-squared: 0.41. Which one should I use?
+
+I would go for the first model. In general, the higher R^2 (and adjusted R^2) would indicate  a better fit, however, the adjusted R takes into account the number of variables in the model. There is more of a difference in the second model, suggesting there are more predictors, and with every additional predictor there will be a greater chance of overfitting the model. However, in the first model, although the R^2 is lower, it is very similar to the adjR^2, so we know that is hasn't been overfitted.
+
+### I have a model with the following errors: RMSE error on test set: 10.3, RMSE error on training data: 10.4. Do you think this model is over-fitting?
+
+The RMSE (root mean square error) calculates the mean difference between values predicted in the model and the actual model, in this case the RMSE is slightly lowerer in the test set compared to the training data, indicating a test has a slightly better model. However, the difference between the two RMSE is very small which would suggest that the model is not over fitted. 
+
+### How does k-fold validation work?
+
+If you have a dataset and it isn't possible to remove 20% for a test set (retaining 80% for the training set) the a k-fold validation would be a possible solution. In this case, the dataset is split into 5 equal sets, or folds, and one set is removed for the test set, whilst the other 4 sets are used to train the model. This is repeated for all possible combinations i.e. each fold is used as the test and the other 4 as the training data. An average is generated across each of the 5 models. 
+
+### What is a validation set? When do you need one?
+
+A validation set is required when building large models and especially if multiple types of models are being compared. In this case, a section of the data is witheld from the test and training process, for the purpose of validation. With all models, each predictor increases the chance of overfitting the model, and the validation set is important to ensure that the model fits well. 
+
+The training set and the validation set are always kept completely separate. The validation set is the final measure of accuracy for your model. 
+
+### Describe how backwards selection works.
+
+In a backwards selection model, all the variables are included at the beginning and are removed individually according to which one reduces the R^2 by the least. This is repeated for all the variables until there are none left. The order in this case is important, once a variable has been removed it will not be returned. 
+
+### Describe how best subset selection works.
+
+A subset selection is an exhaustive way to generate a model, in which every possible combination of variables is investigated by comparing the R^2 and only keeping the one with the highest R^2 combination. It requires more computing power but will find the best model from these variables. 

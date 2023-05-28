@@ -1,0 +1,565 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Weekend homework - Model Building
+
+
+Load in libraries and data
+```{r}
+library(tidyverse)
+library(ggfortify)
+library(GGally)
+library(ggplot2)
+library(modelr)
+library(broom)
+library(leaps)
+```
+
+```{r}
+red <- read_csv("data/wine_quality_red.csv")
+white <- read.csv("data/wine_quality_white.csv")
+```
+
+
+```{r}
+names(white)
+names(red)
+```
+```{r}
+head(red)
+```
+## Step 1: join the two datasets together to look for correlations
+```{r}
+red$type <- "Red"
+white$type <-"White"
+
+wines <- bind_rows(red, white)
+```
+
+```{r}
+wines_trim <- wines%>% 
+  select(-wine_id)
+```
+
+```{r}
+summary(wines)
+```
+
+
+
+### Group wines by properties, and another group for acidities and analyse with ggplots, grouping by type (red/ white)
+```{r}
+wines_group1 <- wines_trim %>% 
+  select(quality, density, p_h, alcohol, region, residual_sugar, type)
+```
+
+```{r message=FALSE}
+wines_group1 %>% 
+  ggpairs(aes(colour = type))
+```
+Group 2 for acidity and sulphates
+
+```{r}
+wines_group2 <- wines_trim %>% 
+  select(quality, fixed_acidity, volatile_acidity, citric_acid, chlorides, free_sulfur_dioxide, total_sulfur_dioxide, sulphates, type)
+```
+
+```{r message=FALSE}
+wines_group2 %>% 
+  ggpairs(aes(colour = type))
+```
+From both ggplots we see distinctly different properties for red and white wines, which would make a model difficult to build. For example, sulphates correlate to quality at 0.23 for red, but 0.046 for white. And density correlates -0.296 to quality for white, but -0.169 for red. 
+
+Region exploration
+
+```{r}
+wines %>% 
+  ggplot(aes(x = alcohol, y = region, colour = type))+
+  geom_boxplot()
+```
+
+
+## Red wine ggpairs
+```{r}
+red_group1 <- red %>% 
+  select(quality, p_h, density, alcohol, region, residual_sugar)
+```
+
+
+```{r message=FALSE}
+red_group1 %>% 
+  ggpairs()
+```
+
+
+
+```{r}
+red_group2 <- red  %>% 
+  select(quality, fixed_acidity, volatile_acidity, citric_acid, chlorides, free_sulfur_dioxide, total_sulfur_dioxide, sulphates) 
+```
+
+
+```{r message=FALSE}
+red_group2 %>% 
+  ggpairs()
+```
+### Red wines - model building
+
+Top correlation for red wine is with alcohol
+
+```{r}
+red_trim <- red %>% 
+  select(-c(wine_id, type))
+
+mod1_red <- lm(quality ~ alcohol, data = red_trim)
+
+autoplot(mod1_red)
+```
+
+```{r}
+summary(mod1_red)
+```
+
+Diagnostic plots look good, plot 1, 2 and 3 should normal distribution for residuals. 
+
+The R^2 = 0.206 and the result is statistically significant. 
+
+```{r}
+red_resid <- red_trim %>% 
+  add_residuals(model = mod1_red) %>% 
+  select(-c(quality, alcohol))
+```
+
+```{r message=FALSE}
+red_resid %>% 
+  ggpairs(upper = list(continuous = wrap("cor", size = 2)))
+```
+Correlation to residuals indicate that volatile acids have the highest value (0.306), include this as the second predictor in the model. 
+
+```{r}
+mod2a_red <- lm(quality ~ alcohol + volatile_acidity, data = red_trim)
+
+autoplot(mod2a_red)
+```
+```{r}
+summary(mod2a_red)
+```
+Diagnostic plots look fine, normal distribution for the residuals indicated in all plots. 
+
+R^2 = 0.2834
+Statistically significant
+
+```{r}
+red_resid2 <- red_trim %>% 
+  add_residuals(model = mod2a_red) %>% 
+  select(-c(quality, alcohol, volatile_acidity, type))
+```
+
+```{r message=FALSE}
+red_resid2 %>% 
+  ggpairs(upper = list(continuous = wrap("cor", size = 2.5)))
+```
+```{r message=FALSE}
+red_resid2 %>% 
+  select(region, sulphates, fixed_acidity, total_sulfur_dioxide, resid) %>% 
+  ggpairs()
+```
+Best correlation is with sulphates, total_sulphur_dioxide and fixed_acidity. 
+Create a model for each and compare
+1. with sulphates
+```{r}
+mod3a_red <- lm(quality ~ alcohol + volatile_acidity + sulphates, data = red_trim)
+
+autoplot(mod3a_red)
+```
+
+```{r}
+summary(mod3a_red)
+```
+
+2. with total_sulphur dioxide
+
+```{r}
+mod3b_red <- lm(quality ~ alcohol + volatile_acidity + total_sulfur_dioxide, data = red_trim)
+
+autoplot(mod3b_red)
+```
+
+```{r}
+summary(mod3b_red)
+```
+
+3. with fixed_acidity
+```{r}
+mod3c_red <- lm(quality ~ alcohol + volatile_acidity + fixed_acidity, data = red_trim)
+
+autoplot(mod3c_red)
+```
+
+```{r}
+summary(mod3c_red)
+```
+Comparing diagnostic plots, R2 and p_values, the best 3rd predictor (although by not much) is sulphates in mod3a_red
+
+
+```{r}
+red_resid3 <- red_trim %>% 
+  add_residuals(model = mod3a_red) %>% 
+  select(-c(quality, alcohol, volatile_acidity, type, sulphates))
+```
+
+```{r message=FALSE}
+red_resid3 %>% 
+  ggpairs()
+```
+```{r}
+mod4_red <- lm(quality ~ alcohol + volatile_acidity + sulphates + total_sulfur_dioxide, data = red_trim)
+
+autoplot(mod4_red)
+```
+```{r}
+summary(mod4_red)
+```
+This fourth element adds very little to the model, although the diagnostic plots look ok the R^2 improves only slightly (from 0.2985 to 0.3066) and this fourth predictor is not required. 
+
+Investigate the overfitting by comparing adjusted R^2, AIC and BIC for mod3a_red and mod4_red
+
+```{r}
+glance(mod3a_red) %>% 
+  select(r.squared, adj.r.squared, AIC, BIC)
+```
+
+```{r}
+glance(mod4_red) %>% 
+  select(r.squared, adj.r.squared, AIC, BIC)
+```
+From these measurements, we can see that 
+
+R^2 is higher in the mod4_red as expected, since there is an additional element in the model compared to mod3a_red. The adjustred R^2 (which is adjusted on the number of predictors in the model) is also higher in mod4_red, suggesting that that the addition of an extra predictor in mod4_red has slightly improved the model. Furthermore, AIC and BIC are both single measurements of a good fit, are both lower in mod4_red. From this we can conclude that the model with 4 elements is better than 3. 
+
+We can interpret the 4 predictor model (from mod4_red summary) as the quality of red wine is modelled from alcohol content, volatile acidity, sulphates and total sulphur dioxide. 
+
+The equation for this would be:
+
+quality = intercept + (b1 * alcohol) + (b2 * volatile_acidity) + (b3 * sulphates) + (b4 * total_sulphur_dioxide)
+quality = 2.857 + (0.291 * alcohol) + (-1.17 * volatile_acidity) + (0.672 * sulphates) + (b4 * -0.00238)
+
+## White wines
+
+```{r}
+white_group1 <- white %>% 
+  select(quality, density, p_h, alcohol, region, residual_sugar)
+```
+
+
+```{r message=FALSE}
+white_group1 %>% 
+  ggpairs()
+```
+
+```{r}
+white_group2 <- white %>% 
+  select(quality, fixed_acidity, volatile_acidity, citric_acid, chlorides, free_sulfur_dioxide, total_sulfur_dioxide, sulphates)
+```
+
+```{r message=FALSE}
+white_group2 %>% 
+  ggpairs()
+```
+
+white wine model building
+
+```{r}
+white_trim <- white %>% 
+  select(-c(wine_id, type))
+
+mod1_white <- lm(quality ~ alcohol, data = white_trim)
+
+autoplot(mod1_white)
+```
+
+```{r}
+summary(mod1_white)
+```
+The diagnostic plots are fine, show that there is normal distribution in the residuals. 
+
+The summary shows that the R^2 is 0.1769 and the coefficient is statistically significant. 
+
+Check the residuals for the next predictor
+
+```{r}
+white_resid = white_trim %>% 
+  add_residuals(model = mod1_white) %>% 
+  select(-c(quality, alcohol))
+```
+
+```{r message=FALSE}
+white_resid %>% 
+  ggpairs(upper = list(continuous = wrap("cor", size = 2)))
+```
+
+
+```{r}
+mod2_white <- lm(quality ~ alcohol + volatile_acidity, data = white_trim)
+
+autoplot(mod2_white)
+```
+
+```{r}
+summary(mod2_white)
+```
+
+```{r}
+white_resid2 <- white_trim %>% 
+  add_residuals(model = mod2_white) %>% 
+  select(-c(quality, alcohol, volatile_acidity))
+```
+
+```{r message=FALSE}
+white_resid2 %>% 
+  ggpairs(upper = list(continuous = wrap("cor", size = 2)))
+```
+
+```{r message=FALSE}
+white_resid2 %>% 
+  select(residual_sugar, free_sulfur_dioxide, region, resid) %>% 
+  ggpairs()
+```
+```{r}
+mod3_white <- lm(quality ~ alcohol + volatile_acidity + residual_sugar, data = white_trim)
+
+autoplot(mod3_white)
+```
+
+```{r}
+summary(mod3_white)
+```
+
+```{r}
+white_resid3 <- white_trim %>% 
+  add_residuals(model = mod2_white) %>% 
+  select(-c(quality, alcohol, volatile_acidity, residual_sugar))
+```
+
+```{r message=FALSE}
+white_resid3 %>% 
+  ggpairs()
+```
+
+```{r}
+mod4_white = lm(quality ~ alcohol + volatile_acidity + residual_sugar + free_sulfur_dioxide,
+                data = white_trim)
+
+autoplot(mod4_white)
+```
+
+```{r}
+summary(mod4_white)
+```
+The diagnostic plots looks fine, but the R^2 is 0.2457, which is lower than what we saw for 4preditor model in red wine. Let's consider a further element. 
+
+
+```{r}
+white_resid4 <- white_trim %>% 
+  add_residuals(model = mod4_white) %>% 
+  select(-c(quality, alcohol, volatile_acidity, residual_sugar, free_sulfur_dioxide))
+```
+
+
+```{r message=FALSE}
+white_resid4 %>% 
+  ggpairs()
+```
+
+```{r}
+white_resid4 %>% 
+  select(resid, region) %>% 
+  ggpairs()
+```
+
+Very small correlation for fixed_acidity (-0.067), will try to create model with an additional predictor but will also check for overfiting to see if it is worth it. 
+
+```{r}
+mod5_white <- lm(quality ~ alcohol + volatile_acidity + residual_sugar + 
+    free_sulfur_dioxide + fixed_acidity, data = white_trim)
+
+autoplot(mod5_white)
+```
+
+```{r}
+summary(mod5_white)
+```
+
+
+
+```{r}
+glance(mod5_white) %>% 
+  select(r.squared, adj.r.squared, AIC, BIC)
+```
+
+```{r}
+glance(mod4_white) %>% 
+  select(r.squared, adj.r.squared, AIC, BIC)
+```
+The R2 squared is slightly higher for mod5_white, and also the adjusted R2, which adjustes for each predictor that is added. This is also slightly higher but by quite a small amount. The AIC and BIC are both measures of "good fit" and they are both smaller for the mod5_white, but by such a small amount that I am not sure the fifth predictor is adding anything to the model, even though it is statistically significant. 
+
+I would conclude that 4 elements would be enough (the fifth is slightly better but to such a small degree) and the quality of white wines is predicted by on alcohol, volatile_acidity, residual_sugar and free_sulfur_dioxide
+
+The equation for the white wine model is:
+
+quality = intercept + (b1 * alcohol) + (b2 * volatile_acidity) + (b3 * residual_sugar) + (b4 * free_sulfur_dioxide)
+quality = 2.0977 + ( 0.391 * alcohol) + (-2.111 * volatile_acidity) + (0.0238 * residual_sugar) + (0.0038 * sulphur_dioxide)
+
+## Automated model development. 
+
+I am curious to see how my manually developed models compare to an automated one, using the `{leaps}` package. 
+
+We just did a forward model, by adding in the predictor with the best correlation at a time, to improve the R2 of the model. In the automated model, we shall try the same approach
+
+First, let's compare using the best, ie takes each predictor and selects by the best R2 (essentially what we just did manually)
+
+```{r}
+red_regsubsets_forward <- regsubsets(quality ~ ., data = red_trim, nvmax = 15, method = "forward")
+
+red_subsets_forward
+```
+```{r}
+sum_red_subsets <- summary(red_subsets_forward)
+
+sum_red_subsets 
+```
+
+The table in the summary output for the automated model shows the order for predictors that were picked for red wines and returns 
+
+quality ~ alcohol + volatile_acidity + residual_sugar + density + pH + sulphates and so on. 
+
+This is interesting, as my manual model did not have density as the next most correlated predictor! The fourth predictor I tried was total_sulphur_dioxide, but very small increase was found. In the automated model, the fourth predictor is density
+
+The manual model for red wines used 3 predictors and although a fourth was considered, after evaluating the overfitting, decided it didn't add much to the model. It is difficult to know how many predictors to pick!
+
+```{r}
+plot(red_subsets_forward, scale = "adjr2")
+```
+The graph of adjusted R2 values indicates that the highest adjr2 (shown by shaded boxes at the top of the graph) are fixed_acidity, volatile_acidiy, residual_sugar, free_sulphur_dioxide, total_sulphur dioxide, density, pH, sulphates, alcohol, region Italy and region USA. In total this is 11 predictors, which is quite high compared to my manual model. 
+
+To investigate further, compare this plot to BIC which is more parsimonious
+```{r}
+plot(red_subsets_forward, scale = "bic")
+```
+
+The BIC plot shows the change in bic relative to the baseline (bic for intercept only model) and we can see that the lowest BIC score is seen with fixed_acidity, volatile_acidity, residual_sugar, free_sulphur_dioxide, density, pH, sulphates, and alcohol (i.e. 8 predictors)
+
+We can plot R2 values of each model as a function of the number of predictors to investigate this relationship further
+
+```{r}
+plot(sum_red_subsets$rsq, type = "b")
+```
+The adjusted R2 shows it increases with every predictor that is added, as expected. For this model, we see the line beginning to plateau around 7-8 predictors. We should compare this to the BIC scores too, as before, because this is a measure of "goodness of fit"
+
+```{r}
+plot(sum_red_subsets$bic, type = "b")
+```
+From this graph we can see the lowest BIC is indicated when the line plateaus at around index 6, i.e. 6 predictions have the lowest BIC value. We use this to decide how many predictors to add to increase the fit of our model and without overfitting. 
+
+These graphs show there is some consistency that the number of predictors is 6-8. If we err on the more conservative number of predictors (in order to keep the model simple), this would result in a model for red wine quality:
+
+quality =  alcohol + volatile_acidity + residual_sugar + density + pH + sulphates
+
+I will build this model and compare to the previous mod3_red 
+
+```{r}
+mod_red_auto <- lm(quality ~ alcohol + volatile_acidity + residual_sugar + density + p_h + sulphates,
+                   data = red_trim)
+
+autoplot(mod_red_auto)
+```
+Diagnosnotic plots look good, normal distribution in plots 1 and 3 and the QQ shous residuals all along the line. 
+
+```{r}
+summary(mod_red_auto)
+```
+Very interesting to see that although the automated model has additional elements to the manual one, those additional predictors are not statistically significant. It could be argued that although they correlate to the data, they do not have significant effect on the model. Although the R^2 is higher than we found in our mod3_red summary, this doesn't take into account whether they are significant statistically for the model. 
+
+## Automated for white wines
+
+For this example, I will use the exhaustive automated model, which finds the optimal combination of predictors, regardless of order 
+```{r}
+white_subsets <- regsubsets(quality ~ ., data =  white_trim, nvmax = 14, method = "exhaustive")
+white_subsets
+```
+```{r}
+sum_white_subsets <- summary(white_subsets)
+
+sum_white_subsets 
+```
+
+The table in the summary output for the automated model shows the order for predictors that were picked for white wines and returns 
+
+quality ~ alcohol + volatile_acidity + residual_sugar + density + pH + sulphates
+
+THis is interesting as from the manual model, the fourth predictor chosen (from ggpairs - line 348) was free_sulphur_dioxide (0.101), compared to density (0.056)  
+
+We can plot the adjusted R2 and the BIC again
+
+```{r}
+plot(white_subsets, scale = "adjr2")
+```
+```{r}
+plot(red_subsets_forward, scale = "bic")
+```
+
+The BIC plots how that the lowest bic score is seen with fixed_acidity, volatile_acidity, residual_sugar, free_sulphur_dioxide, density, pH, sulphates and alcohol (ie 8 predictors in total)
+
+
+
+
+## Automated plots for all wines
+
+It would be interesting to see how the automated model responds to the data containing both red and white wines. I joined the datasets at the beginning, but as they had different profiles, I decided to build models separately. 
+
+```{r}
+wines_regsubset <- regsubsets(quality ~ ., data =  wines_trim, nvmax = 15, method = "exhaustive")
+
+wines_regsubset
+```
+
+```{r}
+sum_wines_regsubset <- summary(wines_regsubset)
+
+sum_wines_regsubset
+```
+
+
+```{r message=FALSE, warning=FALSE}
+plot(wines_regsubset, scale = "adjr2")
+```
+
+
+
+```{r}
+plot(wines_regsubset, scale = "bic")
+```
+The adjusted R squared plot is not very helpful, as it shows that the best adjR2 contains most of the predictors (except citric acid, region France, USA and Spain)
+
+The BIC plot is not much better, it shows the lowest bic score with all predictors, except those in the adjR2 and chlorides, region Italy
+
+
+```{r}
+plot(sum_wines_regsubset$rsq, type = "b")
+```
+
+The plot of rsq shows an increasing R2 with every element added, and this plateau doesn't begin until predictor 10. Similarly, the BIC graph below shows the plateau around 6-8, indicating that ~8 predictors are needed to model the quality of wines from this data. 
+
+```{r}
+plot(sum_wines_regsubset$bic, type = "b")
+```
+
+Summary:
+
+* manual and automated models produced similar results, however some of the results from the automated need to be checked for significance
+* there isn't a clear pattern to the data, and overfitting may be a problem when adding too many predictors in order to improve the quality of the model. 
+* there isn't a good correlation with quality for many of the variables, which may lead to fitting a model to noise. 
+* using the automated models and regsubset() it looks like the model will require at least 6 variables.
+
