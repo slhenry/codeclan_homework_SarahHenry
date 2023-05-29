@@ -561,5 +561,5 @@ Summary:
 * manual and automated models produced similar results, however some of the results from the automated need to be checked for significance
 * there isn't a clear pattern to the data, and overfitting may be a problem when adding too many predictors in order to improve the quality of the model. 
 * there isn't a good correlation with quality for many of the variables, which may lead to fitting a model to noise. 
-* using the automated models and regsubset() it looks like the model will require at least 6 variables.
+* using the automated models and regsubset() it looks like the model will require at least 6 variable but I would be worried about overfitting, especially as some of these variables are not significant. 
 
