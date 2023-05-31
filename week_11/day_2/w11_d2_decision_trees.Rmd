@@ -101,6 +101,12 @@ OK, that has changed the tree considerably. There are only 4 levels now, with th
 
 Repeated with numbers of passengers, instead of percentages
 
+
+Homework review
+0.64 probability has condition (in this case survived). The label comes from the second label, as the 0.64 > 0.5 therefore label is for the highest. The 100% is relates to the sample size (always starts with 100)
+
+
+
 ```{r}
 rpart.plot(titanic_fit,
            yesno = 2, 

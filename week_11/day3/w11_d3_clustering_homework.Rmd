@@ -1,0 +1,161 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(broom)
+library(factoextra)
+```
+# Task 1: Do some exploratory analysis on the data. Comment on findings.
+```{r}
+mall_customers <- read_csv("data/mall_customers.csv") %>% 
+  clean_names()
+```
+
+
+```{r}
+skimr::skim(mall_customers)
+```
+
+```{r}
+summary(mall_customers)
+```
+
+```{r}
+mall_customers %>% 
+  ggplot(aes(x = annual_income_k, y = spending_score_1_100, colour = gender))+
+  geom_point()
+```
+
+
+
+
+```{r}
+mall_customers %>% 
+  ggplot(aes(x = age, y = spending_score_1_100, colour = gender))+
+  geom_point()
+```
+```{r}
+mall_customers %>% 
+  ggplot(aes(x = age, y = annual_income_k, colour = gender))+
+  geom_point()
+```
+
+From the graph correlating spending score with annual income, it looks initially like there are 5 groups, 4 arranged around a central group. 
+
+Looks like there are group of incomes arranged in a line at £54k and £78k, could be a default income? 
+
+Age and gender seem to be fairly evenly distributed, no discernable patter to these variables. 
+
+The age vs spending_score is interesting as the lower ages are spending the highest amounts, whereas older age groups have lower spending scores. 
+
+
+# Task 2: We are interested in creating a marketing campaign to target customers based on their spending score and annual income. Select an appropriate value for k and perform k-means clustering to find if there are meaningful clusters in the data to target the customer
+
+
+
+```{r}
+# scale the data so that the higher numbers don't disproportionally influence the mean
+mall_cust_scaled <- mall_customers %>% 
+  select(annual_income_k, spending_score_1_100) %>% 
+  mutate(across(everything(), 
+         .fns = scale))
+```
+
+
+
+```{r}
+# create data for around a range of clusters amounts that we want to check
+min_k <- 2
+max_k <- 10
+
+k_clusters <- tibble(k = min_k:max_k) %>% 
+  mutate(kclust = map(k, ~kmeans(mall_cust_scaled, centers = .x, nstart = 25)),
+         tidied = map(kclust, tidy),
+         glance = map(kclust, glance),
+         augmented = map(kclust, augment, mall_customers))
+
+k_clusters
+```
+
+
+```{r}
+# Unnest glance to choose the number of k
+clusterings <- k_clusters %>% 
+  unnest(glance) 
+
+clusterings
+```
+To choose the most appropriate value for k we will first plot the sum of squares (withinss), which is a single measure of how well compacted the k clusters are. This is called the elbow method and we are looking for the value were the angle is most strongly influenced by the next point
+
+```{r}
+# elbow method
+clusterings %>% 
+  ggplot(aes(x = k, 
+             y = tot.withinss))+
+  geom_point() +
+  geom_line()+
+  scale_x_continuous(breaks = seq(1, 20, 1))
+```
+
+
+Second plot will be the "silhouette" method, which is similar to a 'goodness of fit'. The higher the better, and greater than 0.5 is good
+```{r}
+fviz_nbclust(mall_cust_scaled, 
+             kmeans,
+             method = "silhouette",
+             nstart = 25)
+```
+Last method is called gap_stat
+```{r}
+fviz_nbclust(mall_cust_scaled, 
+             kmeans,
+             method = "gap_stat",
+             nstart = 25)
+```
+Elbow method suggests k = 5
+Silhouette method suggests k = 5
+Gap statistic method suggests k = 1, however the highest value is seen at 5 clusters. 
+
+Two of the three methods suggest that 5 is the optimal number of clusters, so will proceed with 5.
+
+# Task 3: Visualise the clustering for your chosen value of k.
+
+
+```{r}
+clusterings %>% 
+  unnest(augmented) %>% 
+  filter(k == 5) %>% 
+  ggplot(aes(y = spending_score_1_100, x = annual_income_k, 
+             colour = .cluster))+
+  geom_point()
+```
+# Task 4: Do you think the clustering seems a good fit for this data?
+
+Yes.Data exploration originally identified 5 groups, which have been assigned in this figure. 
+
+
+# Task 5: Comment on the attributes of one or two of the clusters (maybe even give them an appropriate label if you like - similar to section 4.1 of the ‘Segmentation & clustering intro’ lesson where we saw labels such as “Super Fans” and “Tag-Alongs”).
+
+
+```{r}
+clusterings %>% 
+  unnest(augmented) %>% 
+  filter(k == 5) %>% 
+  group_by(.cluster) %>% 
+  summarise(ave_income = mean(annual_income_k),
+            ave_age = mean(age),
+            ave_spending_score = mean(spending_score_1_100))
+```
+Could assign group labels dependent on age and earnings
+
+Group 1: >40s / middle earners / middle spenders
+Group 2: >40s / high earners/ low spenders
+Group 3: <40s / low earners / high spenders
+Group 4: >40s / low earners / low spenders
+Group 5: <40s / high earners / high spenders
+
+Might be worth targetting customers who fit group2 demographics as they have disposable income and don't spend my in this shop. 
