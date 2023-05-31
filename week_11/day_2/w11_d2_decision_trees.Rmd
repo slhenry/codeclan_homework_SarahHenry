@@ -137,5 +137,9 @@ conf_mat
 The two highest numbers (6 and 25) represent the correctly predicted values from this dataset. ie 25 people were predicted correctly to have survived, and 6 were correctly predicted to have died. There were some incorrect answers too, 4 were incorrectly predicted to have died, when they actually died, and 1 was incorrectly predicted to have survived when they had died. 
 
 
-
+```{r}
+titanic_test_pred %>% 
+  sensitivity(truth = survived, estimate = pred)
+```
+The overall probability of this test was 0.857 correct
 
