@@ -1,0 +1,168 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+# Text mining homework
+
+```{r}
+library(textdata)
+library(tidytext)
+library(janeaustenr)
+library(tidyverse)
+```
+
+## Find the most common words in both Pride & Prejudice and Sense & Sensibility.
+
+```{r}
+head(prideprejudice, 10)
+```
+```{r}
+head(sensesensibility, 20)
+```
+
+```{r}
+pride_book <- tibble(
+  id = 1:length(prideprejudice),
+  text = prideprejudice
+) %>% 
+  unnest_tokens(word, text)
+
+head(pride_book, 10)
+```
+
+```{r}
+sense_book <- tibble(
+  id = 1:length(sensesensibility),
+  text = sensesensibility
+) %>% 
+  unnest_tokens(word, text)
+
+head(sense_book, 10)
+```
+
+```{r}
+top_words_pride <- pride_book %>% 
+  count(word, sort = TRUE) %>% 
+  arrange(desc(n)) %>% 
+  head(20) %>% 
+  pull(word)
+
+top_words_sense <- sense_book %>% 
+  count(word, sort = TRUE) %>% 
+  arrange(desc(n)) %>% 
+  head(20) %>% 
+  pull(word)
+
+pride_sense <- tibble(
+  top_words_pride,
+  top_words_sense
+)
+
+pride_sense
+```
+
+## Find the most common words in both Pride & Prejudice and Sense & Sensibility, not including stop words.
+
+```{r}
+stop_words_pride <- pride_book %>% 
+  anti_join(filter(stop_words, lexicon == "snowball")) %>% 
+  count(word, sort = TRUE) %>% 
+  arrange(desc(n)) %>% 
+  head(20) %>% 
+  pull(word)
+
+stop_words_sense <- sense_book %>% 
+  anti_join(filter(stop_words, lexicon == "snowball")) %>% 
+  count(word, sort = TRUE) %>% 
+  arrange(desc(n)) %>% 
+  head(20) %>% 
+  pull(word)
+
+stop_pride_sense <- tibble(
+  stop_words_pride,
+  stop_words_sense
+)
+
+stop_pride_sense
+```
+
+
+## 3. Find the most common sentiment words in both Pride & Prejudice and Sense & Sensibility.
+
+```{r}
+pride_book %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  group_by(sentiment, word) %>% 
+  count(word, sort = TRUE)
+```
+
+```{r}
+sense_book %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  group_by(sentiment, word) %>% 
+  count(word, sort = TRUE)
+```
+
+## Extension: Taking your results above. Can you create a plot which visualises the differences between the books?
+
+```{r}
+pride_senti <- pride_book %>% 
+  inner_join(get_sentiments("afinn")) %>% 
+  group_by(id) %>% 
+  summarise(mean_sentence_pride = mean(value))
+
+sense_senti <- sense_book %>% 
+  inner_join(get_sentiments("afinn")) %>% 
+  group_by(id) %>% 
+  summarise(mean_sentence_sense = mean(value))
+
+books_join <- full_join(sense_senti, pride_senti)
+
+```
+
+```{r}
+books_join_long <- books_join %>% 
+  pivot_longer(cols = !id, names_to = "book", values_to = "mean_sentence") %>% 
+  mutate(book = str_remove(book, "mean_sentence_"))
+```
+
+```{r}
+books_join_long %>% 
+  ggplot(aes(x = id, y = mean_sentence))+
+  geom_point(size = 1, alpha = 0.5)+
+  geom_smooth(aes(colour = book), linewidth = 1)+
+  geom_hline(yintercept = 0, colour = "blue", linewidth = 1.3)+
+  ylim(-3.5, 4.5)+
+  labs(
+    x = "Book sentence",
+    y = "Mean sentence value",
+    title = "Sentiment Analysis of 'Pride & Prejudice' and 'Sense & Sensibility' Books"
+  )
+```
+Not terribly clear, try to calculate the difference between the sentiment values for each book
+
+```{r}
+summary(books_join)
+
+books_no_nas <- books_join %>% 
+  mutate(mean_sentence_sense = coalesce(mean_sentence_sense, 0),
+         mean_sentence_pride = coalesce(mean_sentence_pride, 0))
+```
+
+```{r}
+books_no_nas %>% 
+  mutate(diff = mean_sentence_sense - mean_sentence_pride) %>% 
+  select(id, diff) %>% 
+  ggplot(aes(x = id, y = diff))+
+  geom_point()+
+  geom_smooth(linewidth = 3)+
+  geom_hline(yintercept = 0, colour = "red", linewidth = 1)+
+    labs(
+    x = "Book sentence",
+    y = "Difference in mean sentence value",
+    title = "Difference in Sentiment Analysis of 'Pride & Prejudice' and 'Sense & Sensibility' Books")+
+  theme(plot.title = element_text(hjust = 1))
+```
+
