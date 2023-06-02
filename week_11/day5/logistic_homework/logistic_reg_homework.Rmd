@@ -1,0 +1,285 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(GGally)
+library(broom)
+library(pROC)
+library(modelr)
+library(caret)
+
+```
+
+```{r}
+oj <- read_csv("data/orange_juice.csv") %>% 
+  clean_names()
+```
+
+```{r}
+head(oj)
+```
+
+```{r}
+glimpse(oj)
+```
+
+## Data wrangling
+need to change the purchase variable to a logical 
+
+```{r}
+oj %>% 
+  count(purchase)
+```
+
+```{r}
+oj <- oj %>% 
+  mutate(purchase_ch = as_factor(if_else(purchase == "CH", "t", "f")), .after = purchase,
+         store7 = as_factor(if_else(store7 == "Yes", "t", "f"))) 
+```
+
+```{r}
+alias(purchase_ch ~ ., data = oj)
+```
+```{r}
+oj_tidy <- oj %>% 
+  select(-c(purchase, sale_price_ch, sale_price_ch, price_diff, list_price_diff, store, pct_disc_mm, pct_disc_ch))
+
+glimpse(oj_tidy)
+```
+
+
+First, let's look at correlations in the data to purchase_ch using ppairs
+
+group1 - store data, time of year, loyal_ch
+group2 - prices, discounts, specials
+
+
+```{r}
+oj_group1 <- oj_tidy %>% 
+  select(purchase_ch, weekof_purchase, store_id, store7, loyal_ch)
+
+oj_group2 <- oj_tidy %>% 
+  select(purchase_ch, price_ch, price_mm, disc_ch, disc_mm, special_ch, special_mm)
+```
+
+
+
+```{r message=FALSE}
+ggpairs(oj_group1)
+```
+
+```{r message=FALSE}
+ggpairs(oj_group2)
+```
+
+
+Group 1 - promising correlations store_id/ store to examine further, week of year and loyal customer
+Group 2 - discount prices for both MM and CH, possibly also with prce mm
+
+Overall, the variables with the highest correlations to purchase_ch are 
+disc_ch, disc_mm, loyal_ch, store and week of the year
+
+
+```{r}
+summary(oj_tidy)
+```
+
+First, let's practice simple logistical regression with these four variables to compare which will be the best predictor
+
+```{r}
+mod1a_disc_ch <- glm(purchase_ch ~ disc_ch, 
+                     data = oj_tidy, 
+                     family = binomial(link = "logit"))
+
+mod1b_loyal_ch <- glm(purchase_ch ~ loyal_ch, 
+                     data = oj_tidy, 
+                     family = binomial(link = "logit"))
+
+mod1c_store_id <- glm(purchase_ch ~ store_id, 
+                     data = oj_tidy, 
+                     family = binomial(link = "logit"))
+                     
+```
+
+```{r}
+clean_names(tidy(mod1a_disc_ch))
+```
+
+```{r}
+clean_names(tidy(mod1b_loyal_ch))
+```
+
+
+
+```{r}
+clean_names(tidy(mod1c_store_id))
+```
+Excellent! All these predictors are significant as the p-value is well below 0.05
+
+```{r}
+clean_names(glance(mod1a_disc_ch))
+```
+
+
+```{r}
+clean_names(glance(mod1b_loyal_ch))
+```
+```{r}
+clean_names(glance(mod1c_store_id))
+```
+Quite a difference in AIC and BIC for loyal_ch predictor, which is much lower than for the other two. This suggests that loyal_ch is a better predictor than the disc_ch and store_id. However, all are significant. 
+
+
+Let's plot the AUC and compare the area under the curve for which is the best predictor
+
+
+```{r}
+oj_with_mod1a_disc_ch <- oj_tidy %>% 
+  add_predictions(mod1a_disc_ch, type = "response")
+
+oj_with_mod1b_loyal_ch <- oj_tidy %>% 
+  add_predictions(mod1b_loyal_ch, type = "response")
+
+oj_with_mod1c_store_id <- oj_tidy %>% 
+  add_predictions(mod1c_store_id, type = "response")
+
+```
+
+
+```{r}
+roc_obj_mod1a <- oj_with_mod1a_disc_ch %>% 
+  roc(response = purchase_ch, predictor = disc_ch)
+
+roc_obj_mod1b <- oj_with_mod1b_loyal_ch %>% 
+  roc(response = purchase_ch, predictor = loyal_ch)
+
+roc_obj_mod1c <- oj_with_mod1c_store_id %>% 
+  roc(response = purchase_ch, predictor = store_id)
+```
+
+```{r}
+roc_curve <- ggroc(
+  data = list(
+    mod1a = roc_obj_mod1a,
+    mod1b = roc_obj_mod1b,
+    mod1c = roc_obj_mod1c
+  ),
+  legacy.axes = TRUE
+)+
+  coord_fixed()
+
+roc_curve
+```
+
+Great, this would support the AIC and BIC scores that the best predictor of whether customers buy CH orange juice is the loyalty to CH. 
+
+```{r}
+auc(roc_obj_mod1a)
+auc(roc_obj_mod1b)
+auc(roc_obj_mod1c)
+```
+tHis is very clear too, the best predictor is loyalty to ch.
+The store_id predictor is also ok but not as good as loyalty
+The disc_ch has a AUC of < 0.5, which means it would perform worse than a random classifier!
+
+## Cross validation for how representative our AUC above is
+
+```{r}
+train_control <- trainControl(method = "repeatedcv",
+                              number = 5, 
+                              repeats = 100,
+                              savePredictions = TRUE,
+                              classProbs = TRUE,
+                              summaryFunction = twoClassSummary)
+```
+
+```{r}
+mod1a_disc_cv <- train(mod1a_disc_ch$formula, 
+                       data = oj_tidy,
+                       trControl = train_control, 
+                       method = "glm", 
+                       family = binomial(link = "logit"))
+```
+```{r}
+mod1b_loyal_ch_cv <- train(mod1b_loyal_ch$formula, 
+                       data = oj_tidy,
+                       trControl = train_control, 
+                       method = "glm", 
+                       family = binomial(link = "logit"))
+```
+
+```{r}
+mod1c_store_id_cv <- train(mod1c_store_id$formula, 
+                       data = oj_tidy,
+                       trControl = train_control, 
+                       method = "glm", 
+                       family = binomial(link = "logit"))
+```
+
+```{r}
+mod1a_disc_cv$results
+```
+
+```{r}
+mod1b_loyal_ch_cv$results
+```
+
+```{r}
+mod1c_store_id_cv$results
+```
+OK, these results are quite similar to the AUC values we had earlier. The loyal_ch is the best predictor again (ROC = 0.87), and store_id is ok too (ROC = 0.64). The disc_ch performs slightly better with cross validation than on all the data (not sure why?) but still not much better than getting the right answer half the time 
+
+
+
+## Model with all the classifiers to see how other predictors perform and if multiple might provide a better model. 
+
+
+```{r}
+mod_all_pred <- glm(purchase_ch ~ .,
+                    data = oj_tidy,
+                    family = binomial(link = "logit"))
+
+clean_names(tidy(mod_all_pred)) %>% 
+  arrange(p_value) %>% 
+  filter(p_value > 0.05)
+
+
+
+```
+ok, this is interesting. None of the above predictors are signficant, but they include store_id, which was significant when treated by itself! 
+
+```{r}
+clean_names(tidy(mod_all_pred)) %>% 
+  arrange(p_value) %>% 
+  filter(p_value < 0.05)
+```
+Let's make a model with just these significant predictors
+
+```{r}
+mod_5pred <- glm(purchase_ch ~ loyal_ch + disc_mm + price_mm + disc_ch + price_ch,
+                    data = oj_tidy,
+                    family = binomial(link = "logit"))
+
+clean_names(tidy(mod_5pred))
+```
+```{r}
+oj_with_mod_5pred <- oj_tidy %>% 
+  add_predictions(mod_5pred, type = "response")
+
+roc_obj_mod_5pred <- oj_with_mod_5pred %>% 
+  roc(response = purchase_ch, predictor = pred)
+
+ggroc(roc_obj_mod_5pred)+
+  coord_fixed()
+```
+```{r}
+auc(roc_obj_mod_5pred)
+```
+
+The AUC obtained from cross validation using just the loyal_ch as classifer was only slightly less than this model (ROC with loyal_ch = 0.8738876) suggesting that the main predictor is the loyal_ch. As they are so close, it would also suggest that there isn't any strong evidence of overfitting. 
+
+
